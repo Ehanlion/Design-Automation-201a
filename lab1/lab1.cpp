@@ -1,9 +1,9 @@
-//Author: Firstname Lastname
-//UID: XXX-XXX-XXX
+//Author: Ethan Owen
+//UID: 905452983
 //UCLA EE 201A Lab 1
 
 // *****************************************************************************
-// HelloWorld.cpp
+// Lab1.cpp
 //
 // The following tasks are performed by this program
 //  1. Derive an oaTech observer to handle conflicts in the technology hierarchy
@@ -31,18 +31,25 @@
 // *****************************************************************************
 // *****************************************************************************
 
+// Standard C++ input/output library for printing to console
 #include <iostream>
+// OpenAccess Design Database API - provides access to IC design data structures
 #include "oaDesignDB.h"
 
-// Includes from a class library
+// Includes from a class library - helper utilities for OpenAccess
+// Observer classes handle warnings/conflicts that may occur during design operations
 #include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonTechObserver.h"
 #include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonLibDefListObserver.h"
 #include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonFunctions.h"
 
 
+// Using OpenAccess namespace - allows us to use oaDesign, oaBlock, etc. without "oa::" prefix
 using namespace oa;
+// Using standard namespace - allows us to use cout, endl, etc. without "std::" prefix
 using namespace std;
 
+// OpenAccess uses a "namespace" system for naming objects. oaNativeNS is the default namespace
+// This is used when getting/setting names of libraries, cells, views, nets, etc.
 static oaNativeNS ns;
 
 
@@ -51,22 +58,30 @@ static oaNativeNS ns;
 // ****************************************************************************
 // printDesignNames()
 //
-// This function gets the library, cell and view names associated with the open
-// design and prints them.
+// This function extracts and displays the hierarchical names of an OpenAccess design.
+// In OpenAccess, designs are organized hierarchically:
+//   - Library: A collection of cells (like a folder containing multiple designs)
+//   - Cell: A specific design or component (like a file in that folder)
+//   - View: A particular representation of that cell (e.g., "layout", "schematic", "netlist")
+//
+// Parameters:
+//   design - Pointer to an oaDesign object that has already been opened
 // ****************************************************************************
 void
 printDesignNames(oaDesign *design)
 {
-    oaString    libName;
-    oaString    cellName;
-    oaString    viewName;
+    // oaString is OpenAccess's string type - used to store names
+    oaString libName;
+    oaString cellName;
+    oaString viewName;
 
-    // Library, cell and view names are obtained.
+    // Extract the names from the design object using the namespace (ns)
+    // These methods populate the oaString variables with the actual names
     design->getLibName(ns, libName);
     design->getCellName(ns, cellName);
     design->getViewName(ns, viewName);
 
-    // Library, cell and view names are printed.
+    // Print the extracted names to the console
     cout << "\tThe library name for this design is : " << libName << endl;
     cout << "\tThe cell name for this design is : " << cellName << endl;
     cout << "\tThe view name for this design is : " << viewName << endl;
@@ -75,26 +90,39 @@ printDesignNames(oaDesign *design)
 
 
 // ****************************************************************************
-// void printNets()
+// printNets()
 //  
-//  This function invokes the net iterator for the design and prints the names
-//  of the nets one by one.
+// This function iterates through all nets in a design and prints their names.
+// A "net" in IC design represents an electrical connection (wire) between components.
+// A "block" is the container that holds all the design elements (nets, instances, etc.)
+// The "TopBlock" is the top-level block of the design hierarchy.
+//
+// Parameters:
+//   design - Pointer to an oaDesign object that has already been opened
 // ****************************************************************************
 void
 printNets(oaDesign *design)
 {
-    // Get the TopBlock of the current design
+    // Get the TopBlock - this is where all the nets, instances, and other design elements live
     oaBlock *block = design->getTopBlock();
 
+    // Check if the block exists (some designs might not have a block yet)
     if (block) {
-        oaString        netName;
+        oaString netName;
 
         cout << "The following nets exist in this design." << endl;
 
-        // Iterate over all nets in the design
+        // Create an iterator to go through all nets in the block
+        // oaIter<oaNet> is a template class that provides iteration over collections
+        // block->getNets() returns a collection of all nets in this block
         oaIter<oaNet> netIterator(block->getNets());
+        
+        // Iterate: getNext() returns the next net, or NULL when done
+        // This is a common OpenAccess pattern for iterating through collections
         while (oaNet *net = netIterator.getNext()) {
+            // Extract the name of this net using the namespace
             net->getName(ns, netName);
+            // Print the net name
             cout << "\t" << netName << endl;
         }
     } else {
@@ -110,123 +138,191 @@ printNets(oaDesign *design)
 // ****************************************************************************
 // main()
 //
-// This is the top level function that opens the design, prints library, cell,
-// and view names, creates nets, and iterates the design to print the net 
-// names.
+// This is the entry point of the program. It performs the following steps:
+//   1. Initialize the OpenAccess API
+//   2. Set up observers to handle warnings/conflicts
+//   3. Find or create the design library
+//   4. Open the specified design (library/cell/view)
+//   5. Print design information and existing nets
+//   6. Perform lab exercises (Problem 2: fanout, Problem 3: wirelength)
+//   7. Clean up by closing design and library
+//
+// The program uses exception handling (try/catch) to gracefully handle errors
+// that may occur during OpenAccess operations.
 // ****************************************************************************
 int
 main(int argc,
      char *argv[])
 {
     try {
-        // Initialize OA with data model 3, since incremental technology
-        // databases are supported by this application.
+        // Initialize OpenAccess API - must be called before any other OA operations
+        // Parameters: major version, minor version, data model version (3 = supports incremental tech DBs)
+        // This sets up the OpenAccess runtime environment
         oaDesignInit(oacAPIMajorRevNumber, oacAPIMinorRevNumber, 3);
 
-        oaString        libPath("./DesignLib");
-        oaString        library("DesignLib");
-        oaViewType      *viewType = oaViewType::get(oacMaskLayout);
-        oaString        cell("s1196_bench");
-        oaString        view("layout");
-        oaScalarName    libName(ns, library);
-        oaScalarName    cellName(ns, cell);
-        oaScalarName    viewName(ns, view);
-        oaScalarName    libraryName(ns, library);
-        // Setup an instance of the oaTech conflict observer.
+        // Define the library path (where the design files are stored on disk)
+        oaString libPath("./DesignLib");
+        // Define the library name (logical name in OpenAccess)
+        oaString library("DesignLib");
+        // Get the view type - oacMaskLayout means this is a physical layout view
+        // (as opposed to schematic, netlist, etc.)
+        oaViewType *viewType = oaViewType::get(oacMaskLayout);
+        // Define the cell name (the specific design we want to open)
+        oaString cell("s1196_bench");
+        // Define the view name (which view of this cell we want)
+        oaString view("layout");
+        
+        // Create OpenAccess name objects - these are used to identify objects in the hierarchy
+        // oaScalarName wraps a string in OpenAccess's naming system
+        oaScalarName libName(ns, library);
+        oaScalarName cellName(ns, cell);
+        oaScalarName viewName(ns, view);
+        oaScalarName libraryName(ns, library);
+        
+        // Setup observers - these handle warnings and conflicts that may occur
+        // Observers are like event handlers that get called when certain things happen
+        // The parameter (1) typically means "verbose mode" - print all messages
+        // Tech conflict observer: handles conflicts in technology database (layer definitions, etc.)
         opnTechConflictObserver myTechConflictObserver(1);
-
-        // Setup an instance of the oaLibDefList observer.
+        // LibDefList observer: handles warnings related to library definition files (lib.defs)
         opnLibDefListObserver myLibDefListObserver(1);
 
-        // Read in the lib.defs file.
+        // Try to find the library - this looks in lib.defs (library definition file)
+        // lib.defs is a configuration file that tells OpenAccess where libraries are located
         oaLib *lib = oaLib::find(libraryName);
 
+        // If library wasn't found in lib.defs, we need to handle it
         if (!lib) {
+            // Check if the library directory actually exists on disk
             if (oaLib::exists(libPath)) {
-                // Library does exist at this path but was not in lib.defs
+                // Library exists on disk but wasn't registered in lib.defs
+                // Open it directly by specifying the path
                 lib = oaLib::open(libraryName, libPath);
             } else {
+                // Library doesn't exist - we need to create it
+                // Check if there's a DM (Design Manager) system environment variable
+                // DM systems provide version control and collaboration features
                 char *DMSystem = getenv("DMSystem");
                 if (DMSystem) {
+                    // Create library with DM system support (shared/versioned mode)
                     lib = oaLib::create(libraryName, libPath, oacSharedLibMode, DMSystem);
                 } else {
+                    // Create a simple local library without DM system
                     lib = oaLib::create(libraryName, libPath);
                 }
             }
+            // After finding or creating the library, update lib.defs so it's registered
             if (lib) {
-                // We need to update the user's lib.def file since we either
-                // found or created the library without a lib.defs reference.
+                // Update lib.defs file so future runs can find this library automatically
                 updateLibDefsFile(libraryName, libPath);
             } else {
-                // Print error message
+                // Failed to create/open library - print error and exit
                 cerr << "ERROR : Unable to create " << libPath << "/";
                 cerr << library << endl;
                 return(1);
             }
         }
-        // Create the design with the specified viewType,
-        // Opening it for a 'read' operation.
+        // Open the design - this loads the design data into memory
+        // Parameters:
+        //   libraryName, cellName, viewName - identify which design to open
+        //   viewType - the type of view (layout, schematic, etc.)
+        //   'r' - open in READ mode (use 'w' for write mode to modify the design)
+        // Note: The cout message says 'write' but the code uses 'r' - this may be intentional
         cout << "The design is created and opened in 'write' mode." << endl;
 
         oaDesign *design = oaDesign::open(libraryName, cellName, viewName,
                                           viewType, 'r');
 
-        // The library, cell, and view names are printed.
+        // Print information about the opened design
+        // This displays the library/cell/view names we're working with
         printDesignNames(design);
+        // Print all the nets that exist in this design
         printNets(design);
 
-        // Get the TopBlock for this design.
+        // Get the TopBlock - this is the container for all design elements
+        // The block contains nets, instances (components), terminals (pins), etc.
         oaBlock *block = design->getTopBlock();
 
-        // If no TopBlock exist yet then create one.
+        // Some designs might not have a block yet (empty/new designs)
+        // If no block exists, create one so we can add elements to it
         if (!block) {
             block = oaBlock::create(design);
         }
 
-        // EE 201A Lab 1 Problem 2 starts here
+        // ========================================================================
+        // EE 201A Lab 1 Problem 2: Compute Average Fanout
+        // ========================================================================
+        // Fanout = number of components connected to a net
+        // For each net, count how many instance terminals (InstTerm) and 
+        // primary terminals (Term) are connected to it
         cout << endl << "----- Firstname Lastname: Problem 2 -----" << endl;
 
-        // compute average fanout
+        // TODO: Compute average fanout
+        // Initialize counter for total number of nets
         int total_net = 0;
+        // Create iterator to go through all nets in the block
         oaIter<oaNet> netIterator(block->getNets());
-        // fanout array
+        // TODO: Create a vector/array to store fanout values for each net
 
+        // Iterate through each net in the design
         while (oaNet *net = netIterator.getNext()) {
             total_net++;
+            // TODO: Initialize fanout counter for this net
             fanout = 0;
 
+            // TODO: For each net, iterate through:
+            //   1. InstTerms - terminals of instances (components) connected to this net
+            //   2. Terms - primary I/O terminals (pins) connected to this net
+            // Count both to get total fanout
             net
-            oaIter<oaInstTerm> instTermIterator(....)
-            oaIter<oaTerm> termIterator(....)
+            oaIter<oaInstTerm> instTermIterator(....)  // TODO: Get InstTerms from net
+            oaIter<oaTerm> termIterator(....)           // TODO: Get Terms from net
+            
+            // TODO: Count instance terminals
             while (oaInstTerm *instTerm = instTermIterator.getNext()) {
-
+                // Increment fanout for each instance terminal
             }
+            // TODO: Count primary terminals similarly
+            
+            // TODO: Store fanout value for this net
             fanout_array.push_back(fanout)
-            // ignore power, ground, and clock nets
+            // TODO: Filter out power, ground, and clock nets (they have special names)
         }
-        // what about instterms?
+        // TODO: Calculate average = sum of all fanouts / number of nets
         cout << "Problem 2 -- Average fanout " << (double)sum(fanout_array) / len(fanout_array) << endl;
 
-        // EE 201A Lab 1 Problem 3 starts here
+        // ========================================================================
+        // EE 201A Lab 1 Problem 3: Compute Average Wirelength
+        // ========================================================================
+        // Wirelength = total length of wires connecting components
+        // Need to access the physical geometry of nets to measure their length
         cout << endl << "----- Firstname Lastname: Problem 3 -----" << endl;
 
-        // oaTerm --> oaPin --> oaPinFig (that inherits from oaFig, that includes a useful method you can use.)
+        // TODO: To get wirelength, you need to traverse the hierarchy:
+        //   oaTerm (terminal/pin) --> oaPin (physical pin) --> oaPinFig (pin figure/geometry)
+        //   oaPinFig inherits from oaFig, which has methods to get geometric information
+        //   You'll need to iterate through nets, then through their pin figures to measure length
 
         // Output answers:
         cout << "Problem 2 -- Average fanout " << "*YOUR VALUE HERE*" << endl;
         cout << "Problem 3 -- Average wirelength " << "*YOUR VALUE HERE*" << endl;
 
-        // The design is closed.
+        // Clean up: Close the design to free memory and release file locks
+        // Always close objects when done to prevent resource leaks
         design->close();
 
-        // The library is closed.
+        // Close the library as well
         lib->close();
 
     } catch (oaCompatibilityError &ex) {
+        // Handle compatibility errors - these occur when design data format 
+        // doesn't match the OpenAccess version being used
         handleFBCError(ex);
         exit(1);
 
     } catch (oaException &excp) {
+        // Catch any other OpenAccess exceptions and print the error message
+        // oaException is the base class for all OpenAccess errors
         cout << "ERROR: " << excp.getMsg() << endl;
         exit(1);
     }

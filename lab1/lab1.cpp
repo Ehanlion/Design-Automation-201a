@@ -92,8 +92,8 @@ printNets(oaDesign *design)
         cout << "The following nets exist in this design." << endl;
 
         // Iterate over all nets in the design
-        oaIter<oaNet>   netIterator(block->getNets());
-        while (oaNet * net = netIterator.getNext()) {
+        oaIter<oaNet> netIterator(block->getNets());
+        while (oaNet *net = netIterator.getNext()) {
             net->getName(ns, netName);
             cout << "\t" << netName << endl;
         }
@@ -115,42 +115,39 @@ printNets(oaDesign *design)
 // names.
 // ****************************************************************************
 int
-main(int    argc,
-     char   *argv[])
+main(int argc,
+     char *argv[])
 {
     try {
         // Initialize OA with data model 3, since incremental technology
         // databases are supported by this application.
         oaDesignInit(oacAPIMajorRevNumber, oacAPIMinorRevNumber, 3);
 
-        oaString                libPath("./DesignLib");
-        oaString                library("DesignLib");
-	    oaViewType      	*viewType = oaViewType::get(oacMaskLayout);
-        oaString        	cell("s1196_bench");
-       	oaString        	view("layout"); 
-	    oaScalarName            libName(ns,
-                                        library);
-        oaScalarName            cellName(ns,
-                                         cell);
-        oaScalarName            viewName(ns,
-                                         view);
-	    oaScalarName    	libraryName(ns,library);
+        oaString        libPath("./DesignLib");
+        oaString        library("DesignLib");
+        oaViewType      *viewType = oaViewType::get(oacMaskLayout);
+        oaString        cell("s1196_bench");
+        oaString        view("layout");
+        oaScalarName    libName(ns, library);
+        oaScalarName    cellName(ns, cell);
+        oaScalarName    viewName(ns, view);
+        oaScalarName    libraryName(ns, library);
         // Setup an instance of the oaTech conflict observer.
         opnTechConflictObserver myTechConflictObserver(1);
 
         // Setup an instance of the oaLibDefList observer.
-        opnLibDefListObserver   myLibDefListObserver(1);
+        opnLibDefListObserver myLibDefListObserver(1);
 
         // Read in the lib.defs file.
-		oaLib *lib = oaLib::find(libraryName);
+        oaLib *lib = oaLib::find(libraryName);
 
         if (!lib) {
             if (oaLib::exists(libPath)) {
                 // Library does exist at this path but was not in lib.defs
                 lib = oaLib::open(libraryName, libPath);
             } else {
-            char *DMSystem=getenv("DMSystem");
-            if(DMSystem){
+                char *DMSystem = getenv("DMSystem");
+                if (DMSystem) {
                     lib = oaLib::create(libraryName, libPath, oacSharedLibMode, DMSystem);
                 } else {
                     lib = oaLib::create(libraryName, libPath);
@@ -161,47 +158,47 @@ main(int    argc,
                 // found or created the library without a lib.defs reference.
                 updateLibDefsFile(libraryName, libPath);
             } else {
-                // Print error mesage 
+                // Print error message
                 cerr << "ERROR : Unable to create " << libPath << "/";
                 cerr << library << endl;
                 return(1);
             }
         }
-		// Create the design with the specified viewType,
-        // Opening it for a 'write' operation.
+        // Create the design with the specified viewType,
+        // Opening it for a 'read' operation.
         cout << "The design is created and opened in 'write' mode." << endl;
 
-        oaDesign    *design = oaDesign::open(libraryName, cellName, viewName,
-                                             viewType, 'r');
+        oaDesign *design = oaDesign::open(libraryName, cellName, viewName,
+                                          viewType, 'r');
 
         // The library, cell, and view names are printed.
         printDesignNames(design);
-		printNets(design);
+        printNets(design);
 
-		// Get the TopBlock for this design.
+        // Get the TopBlock for this design.
         oaBlock *block = design->getTopBlock();
-	
-		// If no TopBlock exist yet then create one.
+
+        // If no TopBlock exist yet then create one.
         if (!block) {
             block = oaBlock::create(design);
         }
 
-		//EE 201A Lab 1 Problem 2 starts here
-		cout << endl << "----- Firstname Lastname: Problem 2 -----" << endl;
+        // EE 201A Lab 1 Problem 2 starts here
+        cout << endl << "----- Firstname Lastname: Problem 2 -----" << endl;
 
         // compute average fanout
         int total_net = 0;
         oaIter<oaNet> netIterator(block->getNets());
         // fanout array
 
-        while (oaNet * net = netIterator.getNext()) {
+        while (oaNet *net = netIterator.getNext()) {
             total_net++;
             fanout = 0;
 
-            net 
+            net
             oaIter<oaInstTerm> instTermIterator(....)
             oaIter<oaTerm> termIterator(....)
-            while (oaInstTerm * instTerm = instTermIterator.getNext()) {
+            while (oaInstTerm *instTerm = instTermIterator.getNext()) {
 
             }
             fanout_array.push_back(fanout)
@@ -210,19 +207,19 @@ main(int    argc,
         // what about instterms?
         cout << "Problem 2 -- Average fanout " << (double)sum(fanout_array) / len(fanout_array) << endl;
 
-		//EE 201A Lab 1 Problem 3 starts here
-		cout << endl << "----- Firstname Lastname: Problem 3 -----" << endl;
+        // EE 201A Lab 1 Problem 3 starts here
+        cout << endl << "----- Firstname Lastname: Problem 3 -----" << endl;
 
         // oaTerm --> oaPin --> oaPinFig (that inherits from oaFig, that includes a useful method you can use.)
 
-		//Output answers:
-		cout << "Problem 2 -- Average fanout " << "*YOUR VALUE HERE*" << endl;
-		cout << "Problem 3 -- Average wirelength " << "*YOUR VALUE HERE*" << endl;
+        // Output answers:
+        cout << "Problem 2 -- Average fanout " << "*YOUR VALUE HERE*" << endl;
+        cout << "Problem 3 -- Average wirelength " << "*YOUR VALUE HERE*" << endl;
 
-        // The design is closed.   
+        // The design is closed.
         design->close();
 
-        // The library is closed.   
+        // The library is closed.
         lib->close();
 
     } catch (oaCompatibilityError &ex) {

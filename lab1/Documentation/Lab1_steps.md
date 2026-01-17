@@ -2,6 +2,46 @@
 
 Use this as a short, practical checklist while you work through the lab.
 
+---
+
+## Problem 1 — Import Design into OpenAccess ✅ COMPLETE
+
+**What this problem is asking for**
+Import LEF/DEF/Verilog files into an OpenAccess database called `DesignLib`. This creates the OA database that you'll use for Problems 2 and 3.
+
+**Files to import:**
+- `NangateOpenCellLibrary.lef` - Standard cell library definitions
+- `s1196_postrouting.v` - Verilog netlist (logical connectivity)
+- `s1196_postrouting.def` - Physical layout information
+
+**✅ SOLUTION - Run the import script:**
+```bash
+./import_design.sh
+```
+
+**Or run manually (3 commands):**
+```bash
+source lab1_setup  # Set up OA environment
+
+# 1. Import LEF → creates NangateLib (163 standard cells)
+lef2oa -lib NangateLib -lef NangateOpenCellLibrary.lef
+
+# 2. Import Verilog → creates DesignLib with logical design
+verilog2oa -lib DesignLib -refLibs NangateLib -view layout -viewType maskLayout -verilog s1196_postrouting.v
+
+# 3. Import DEF → adds physical layout to design
+def2oa -lib DesignLib -cell s1196_bench -view layout -def s1196_postrouting.def -refLibs NangateLib
+```
+
+**Verification:**
+- ✅ `DesignLib/` directory exists with `s1196_bench/layout/`
+- ✅ `NangateLib/` directory exists with 163 reference cells
+- ✅ All commands report **0 errors**
+
+**Report:** See `PROBLEM1_REPORT.md` for detailed documentation.
+
+---
+
 ## Part 1 — OpenAccess warm‑up (design open + net listing)
 **What this part is asking for**
 Show you can open the OA design database, read basic design metadata, create a couple of nets, save them, and iterate/print all nets in the design.

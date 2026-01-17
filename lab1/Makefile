@@ -21,6 +21,10 @@
 
 include /w/class.1/ee/ee201o/ee201ota/oa_macro.defs
 
+export OA_HOME="/w/class.1/ee/ee201o/ee201ota/oa"
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$OA_HOME/lib/linux_rhel40_64/opt"
+export PATH="$PATH:$OA_HOME/bin/linux_rhel40_64/opt"
+
 PROG = lab1
 
 DEFAULT: $(PROG)
@@ -52,7 +56,3 @@ $(PROG): $(PROG).o  $(OA_LIB_LIST)
 clean: 
 	@/bin/rm  -rf $(PROG).o 
 	@/bin/rm  -rf $(PROG) 
-
-export OA_HOME="/w/class.1/ee/ee201o/ee201ota/oa"
-export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$OA_HOME/lib/linux_rhel40_64/opt"
-export PATH="$PATH:$OA_HOME/bin/linux_rhel40_64/opt"

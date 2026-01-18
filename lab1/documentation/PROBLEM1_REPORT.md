@@ -92,19 +92,19 @@ def2oa -lib DesignLib -cell s1196_bench -view layout -def s1196_postrouting.def 
 ### Created Directory Structure:
 ```
 lab1/
-├── DesignLib/              # Design library
-│   ├── data.dm
-│   └── s1196_bench/        # Design cell
-│       └── layout/         # Layout view
-│           ├── layout.oa   # OpenAccess database file
-│           └── master.tag
-├── NangateLib/             # Reference library (163 cells)
-│   ├── AND2_X1/
-│   ├── AND2_X2/
-│   ├── DFF_X1/
-│   ├── NAND2_X1/
-│   └── ... (160+ more cells)
-└── lib.defs                # Library definitions file
++-- DesignLib/              # Design library
+|   +-- data.dm
+|   +-- s1196_bench/        # Design cell
+|       +-- layout/         # Layout view
+|           +-- layout.oa   # OpenAccess database file
+|           +-- master.tag
++-- NangateLib/             # Reference library (163 cells)
+|   +-- AND2_X1/
+|   +-- AND2_X2/
+|   +-- DFF_X1/
+|   +-- NAND2_X1/
+|   +-- ... (160+ more cells)
++-- lib.defs                # Library definitions file
 ```
 
 ### Library Definitions File (lib.defs):

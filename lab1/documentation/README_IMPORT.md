@@ -1,6 +1,6 @@
 # Lab 1 - Problem 1: Design Import Summary
 
-## ✅ COMPLETE - Import Successful!
+## [COMPLETE] - Import Successful!
 
 The design has been successfully imported into OpenAccess.
 
@@ -22,23 +22,23 @@ This creates:
 
 ## What Was Accomplished
 
-### 1. Created Import Script ✅
+### 1. Created Import Script [OK]
 File: `import_design.sh`
 - Automates the entire 3-step import process
 - Includes error checking and status reporting
 - Can be re-run to clean and re-import
 
-### 2. Successfully Imported Design ✅
-- **LEF Import:** NangateOpenCellLibrary.lef → NangateLib (163 cells)
-- **Verilog Import:** s1196_postrouting.v → DesignLib/s1196_bench/layout
-- **DEF Import:** s1196_postrouting.def → Added physical layout
+### 2. Successfully Imported Design [OK]
+- **LEF Import:** NangateOpenCellLibrary.lef -> NangateLib (163 cells)
+- **Verilog Import:** s1196_postrouting.v -> DesignLib/s1196_bench/layout
+- **DEF Import:** s1196_postrouting.def -> Added physical layout
 
 **Results:**
 - 0 errors in all three steps
 - Total import time: ~3.7 seconds
 - Database ready for Problems 2 & 3
 
-### 3. Created Documentation ✅
+### 3. Created Documentation [OK]
 File: `PROBLEM1_REPORT.md`
 - Complete list of commands used
 - Detailed explanation of each step
@@ -135,4 +135,4 @@ Expected output:
 
 ---
 
-**Status:** ✅ Problem 1 Complete - Ready for Problems 2 & 3
+**Status:** [OK] Problem 1 Complete - Ready for Problems 2 & 3

@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Change to lab1 directory (parent of scripts/)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LAB1_DIR="$(dirname "$SCRIPT_DIR")"
+cd "$LAB1_DIR" || exit 1
+
 # Problem 2 Compilation Script
 # Compiles the lab1.cpp program for fanout analysis
 
@@ -11,7 +16,7 @@ echo ""
 # Check if DesignLib exists
 if [ ! -d "DesignLib" ]; then
     echo "ERROR: DesignLib not found!"
-    echo "Please run ./scripts/problem1-import.sh first to import the design."
+    echo "Please run ./scripts/import.sh first to import the design."
     exit 1
 fi
 

@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Change to lab1 directory (parent of scripts/)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LAB1_DIR="$(dirname "$SCRIPT_DIR")"
+cd "$LAB1_DIR" || exit 1
+
 # Source OpenAccess environment setup
 echo "Setting up OpenAccess environment..."
 source lab1_setup
@@ -55,4 +60,4 @@ echo "Created libraries:"
 echo "  - NangateLib (reference library from LEF)"
 echo "  - DesignLib (design library with s1196_bench/layout)"
 echo ""
-echo "You can now run: make lab1 CCPATH=g++"
+echo "You can now run: ./scripts/compile.sh"

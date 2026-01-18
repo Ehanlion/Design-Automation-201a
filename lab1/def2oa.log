@@ -1,0 +1,9 @@
+*****************************************************************************
+Tool:		def2oa        	22.04.054
+*****************************************************************************
+Running: def2oa -lib DesignLib -refLibs "NangateLib" -def "s1196_postrouting.def" -cell s1196_bench -view layout
+Started: Sat Jan 17 16:02:43 2026 (Hostname: eeapps02.labidm.seas.ucla.edu)
+Finished def2oa
+Time elapsed:	0.15 seconds
+Peak VM:	3280896 bytes
+Messages:	0 errors, 0 warnings

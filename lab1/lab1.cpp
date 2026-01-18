@@ -267,27 +267,39 @@ main(int argc,
         // Iterate through each net in the design
         while (oaNet *net = netIterator.getNext()) {
             total_net++;
+
             // TODO: Initialize fanout counter for this net
-            fanout = 0;
+            // Done, initialized in the while loop
+            int fanout = 0;
 
             // TODO: For each net, iterate through:
             //   1. InstTerms - terminals of instances (components) connected to this net
             //   2. Terms - primary I/O terminals (pins) connected to this net
             // Count both to get total fanout
-            net
-            oaIter<oaInstTerm> instTermIterator(....)  // TODO: Get InstTerms from net
-            oaIter<oaTerm> termIterator(....)           // TODO: Get Terms from net
+            net->getInstTerms();
+            oaIter<oaInstTerm> instTermIterator(net)  // TODO: Get InstTerms from net
+            oaIter<oaTerm> termIterator(net)           // TODO: Get Terms from net
             
             // TODO: Count instance terminals
             while (oaInstTerm *instTerm = instTermIterator.getNext()) {
                 // Increment fanout for each instance terminal
+                fanout++;
             }
             // TODO: Count primary terminals similarly
-            
+            while (oaTerm *term = termIterator.getNext()) {
+                fanout++;
+            }
+
             // TODO: Store fanout value for this net
             fanout_array.push_back(fanout)
+
             // TODO: Filter out power, ground, and clock nets (they have special names)
+            if (netName.contains("VDD") || netName.contains("VSS") || netName.contains("GND") || netName.contains("VCC") || netName.contains("CLK") || netName.contains("clock")) {
+                continue;
+            }
         }
+
+        
         // TODO: Calculate average = sum of all fanouts / number of nets
         cout << "Problem 2 -- Average fanout " << (double)sum(fanout_array) / len(fanout_array) << endl;
 

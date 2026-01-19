@@ -10,8 +10,11 @@ cd "$LAB1_DIR" || exit 1
 
 echo "Cleaning up Problem 2 compilation files..."
 
+# Remove main file and test files
 rm -f lab1.o
 rm -f lab1
+rm -f lab1_test.o
+rm -f lab1_test
 
 echo "Cleanup complete!"
 echo ""

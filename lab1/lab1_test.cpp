@@ -12,7 +12,9 @@
 #include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonLibDefListObserver.h"
 #include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonFunctions.h"
 
+using namespace std;
 using namespace oa;
+static oaNativeNS ns;
 
 int main() {
     cout << "Hello, World!" << endl;

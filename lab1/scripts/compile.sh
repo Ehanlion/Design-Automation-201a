@@ -36,6 +36,7 @@ echo "Compiling lab1.cpp..."
 echo "Command: make lab1 CCPATH=g++"
 make lab1 CCPATH=g++
 
+
 if [ $? -ne 0 ]; then
     echo ""
     echo "ERROR: Compilation failed!"
@@ -51,12 +52,3 @@ echo ""
 echo "=========================================="
 echo "Compilation Successful!"
 echo "=========================================="
-echo ""
-echo "To run the program:"
-echo "  ./lab1"
-echo ""
-echo "The program will:"
-echo "  1. Open the design from DesignLib"
-echo "  2. Print design names and nets"
-echo "  3. Compute and display average fanout (Problem 2)"
-echo "  4. Compute and display average wirelength (Problem 3)"

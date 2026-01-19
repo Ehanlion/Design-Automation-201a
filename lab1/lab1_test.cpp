@@ -68,6 +68,7 @@ int main() {
 		} else {
 			cout << "\nCannot generate fanout histogram, no nets found!" << endl;
 		}
+		cout << endl;
 
 		// Problem 3: Compute HPWL for nets with 2 ends
 		cout << "Problem 3: Compute HPWL for nets with 2 ends" << endl;
@@ -733,6 +734,13 @@ void plotHPWLHistogram(vector<double> hpwlArray, const string& filename) {
 	// Also print summary to console
 	cout << "HPWL Histogram Summary:" << endl;
 	cout << "  HPWL Range: " << minHPWL << " to " << maxHPWL << endl;
-	cout << "  Total Nets (2 ends): " << hpwlArray.size() << endl;
 	cout << "  Average HPWL: " << avg << endl;
+	cout << "  Total Nets (2 ends): " << hpwlArray.size() << endl;
+	for (map<int, int>::iterator it = histogram.begin(); it != histogram.end(); ++it) {
+		if (it->second > 0) {
+			double binStart = minHPWL + it->first * binWidth;
+			double binEnd = minHPWL + (it->first + 1) * binWidth;
+			cout << "  HPWL " << binStart << "-" << binEnd << ": " << it->second << " nets" << endl;
+		}
+	}
 }

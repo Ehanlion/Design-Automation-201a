@@ -1,9 +1,12 @@
 _Training/
 .clangd
+.clang-format
 *.o
 *.defs
 *.log
 def2oa*
 NangateLib/*
+NangateLib/
+NangateLib
 DesignLib/
 lib.defs

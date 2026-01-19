@@ -4,3 +4,6 @@ _Training/
 *.defs
 *.log
 def2oa*
+NangateLib/*
+DesignLib/
+lib.defs

@@ -18,6 +18,9 @@
 #include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonLibDefListObserver.h"
 #include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonTechObserver.h"
 
+// Terminal plotting class
+#include "TerminalPlotter.h"
+
 using namespace std;
 using namespace oa;
 static oaNativeNS ns;
@@ -65,6 +68,17 @@ int main() {
 		if (!fanoutArray.empty()) {
 			plotFanoutHistogram(fanoutArray, "plotting/fanout_histogram.html");
 			cout << "Fanout Histogram saved to plotting/fanout_histogram.html" << endl;
+			// Also plot to terminal
+			HistogramConfig fanoutConfig;
+			fanoutConfig.title = "Fanout Distribution Histogram";
+			fanoutConfig.xAxisLabel = "Fanout Value";
+			fanoutConfig.yAxisLabel = "Number of Nets";
+			fanoutConfig.description = "Distribution of Fanout Values Across All Nets";
+			fanoutConfig.totalLabel = "Total Nets";
+			fanoutConfig.averageLabel = "Average Fanout";
+			fanoutConfig.useBins = false;
+			fanoutConfig.labelWidth = 11;
+			TerminalPlotter::plotHistogram(fanoutArray, fanoutConfig);
 		} else {
 			cout << "\nCannot generate fanout histogram, no nets found!" << endl;
 		}
@@ -82,6 +96,20 @@ int main() {
 		if (!hpwlArray.empty()) {
 			plotHPWLHistogram(hpwlArray, "plotting/hpwl_histogram.html");
 			cout << "HPWL histogram saved to plotting/hpwl_histogram.html" << endl;
+			// Also plot to terminal
+			HistogramConfig hpwlConfig;
+			hpwlConfig.title = "HPWL Distribution Histogram";
+			hpwlConfig.xAxisLabel = "HPWL Range";
+			hpwlConfig.yAxisLabel = "Number of Nets";
+			hpwlConfig.description = "Distribution of HPWL Values for Nets with 2 Ends";
+			hpwlConfig.totalLabel = "Total Nets (2 ends)";
+			hpwlConfig.averageLabel = "Average HPWL";
+			hpwlConfig.minLabel = "Min HPWL";
+			hpwlConfig.maxLabel = "Max HPWL";
+			hpwlConfig.useBins = true;
+			hpwlConfig.numBins = 20;
+			hpwlConfig.labelWidth = 28;
+			TerminalPlotter::plotHistogram(hpwlArray, hpwlConfig);
 		} else {
 			cout << "\nCannot generate HPWL histogram, no nets with 2 ends found!" << endl;
 		}

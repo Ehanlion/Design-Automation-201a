@@ -33,6 +33,9 @@
 
 // Standard C++ input/output library for printing to console
 #include <iostream>
+// Standard C++ vector and numeric algorithms
+#include <vector>
+#include <numeric>
 // OpenAccess Design Database API - provides access to IC design data structures
 #include "oaDesignDB.h"
 
@@ -107,30 +110,39 @@ printNets(oaDesign *design)
     oaBlock *block = design->getTopBlock();
 
     // Check if the block exists (some designs might not have a block yet)
-    if (block) {
+    // if (block) {
+    //     oaString netName;
+    //     cout << "The following nets exist in this design." << endl;
+    //     oaIter<oaNet> netIterator(block->getNets());
+    //     while (oaNet *net = netIterator.getNext()) {
+    //         net->getName(ns, netName);
+    //         cout << "\t" << netName << endl;
+    //     }
+    // } else {
+    //     cout << "There is no block in this design" << endl;
+    // }
+
+    if(block) {
         oaString netName;
-
         cout << "The following nets exist in this design." << endl;
-
-        // Create an iterator to go through all nets in the block
-        // oaIter<oaNet> is a template class that provides iteration over collections
-        // block->getNets() returns a collection of all nets in this block
+        // Print out nets but do 3 per line
+        int count = 0;
         oaIter<oaNet> netIterator(block->getNets());
-        
-        // Iterate: getNext() returns the next net, or NULL when done
-        // This is a common OpenAccess pattern for iterating through collections
         while (oaNet *net = netIterator.getNext()) {
-            // Extract the name of this net using the namespace
             net->getName(ns, netName);
-            // Print the net name
-            cout << "\t" << netName << endl;
+            cout << "\t" << netName;
+            count++;
+            if (count % 3 == 0) {
+                cout << endl;
+            }
         }
-    } else {
-        cout << "There is no block in this design" << endl;
+        // Output remaining nets if not multiple of 3
+        if (count % 3 != 0) {
+            cout << endl;
+        }
     }
+
 }
-
-
 
 
 
@@ -264,44 +276,60 @@ main(int argc,
         oaIter<oaNet> netIterator(block->getNets());
         // TODO: Create a vector/array to store fanout values for each net
 
+        // Created fanout vector array to store fanout values for each net
+        vector<int> fanout_array;
+        
         // Iterate through each net in the design
         while (oaNet *net = netIterator.getNext()) {
+            // Get the net name for filtering
+            oaString netName;
+            net->getName(ns, netName);
+            
+            // Filter out power, ground, and clock nets BEFORE processing
+            // Based on design files: VDD (power), VSS (ground), blif_clk_net (clock)
+            if (netName == "VDD" 
+                || netName == "VSS" 
+                || netName == "blif_clk_net") {
+                continue;  // Skip special nets
+            }
+            
             total_net++;
 
-            // TODO: Initialize fanout counter for this net
-            // Done, initialized in the while loop
+            // Initialize fanout counter for this net
             int fanout = 0;
 
-            // TODO: For each net, iterate through:
+            // For each net, iterate through:
             //   1. InstTerms - terminals of instances (components) connected to this net
             //   2. Terms - primary I/O terminals (pins) connected to this net
             // Count both to get total fanout
-            net->getInstTerms();
-            oaIter<oaInstTerm> instTermIterator(net)  // TODO: Get InstTerms from net
-            oaIter<oaTerm> termIterator(net)           // TODO: Get Terms from net
+            oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
+            oaIter<oaTerm> termIterator(net->getTerms());
             
-            // TODO: Count instance terminals
+            // Count instance terminals
             while (oaInstTerm *instTerm = instTermIterator.getNext()) {
                 // Increment fanout for each instance terminal
                 fanout++;
             }
-            // TODO: Count primary terminals similarly
+            
+            // Count primary terminals
             while (oaTerm *term = termIterator.getNext()) {
+                // Increment fanout for each primary terminal
                 fanout++;
             }
 
-            // TODO: Store fanout value for this net
-            fanout_array.push_back(fanout)
-
-            // TODO: Filter out power, ground, and clock nets (they have special names)
-            if (netName.contains("VDD") || netName.contains("VSS") || netName.contains("GND") || netName.contains("VCC") || netName.contains("CLK") || netName.contains("clock")) {
-                continue;
-            }
+            // Store fanout value for this net
+            fanout_array.push_back(fanout);
         }
 
-        
-        // TODO: Calculate average = sum of all fanouts / number of nets
-        cout << "Problem 2 -- Average fanout " << (double)sum(fanout_array) / len(fanout_array) << endl;
+
+        // Calculate average = sum of all fanouts / number of nets
+        if (fanout_array.size() > 0) {
+            int totalFanout = accumulate(fanout_array.begin(), fanout_array.end(), 0);
+            double avgFanout = (double)totalFanout / fanout_array.size();
+            cout << "Problem 2 -- Average fanout " << avgFanout << endl;
+        } else {
+            cout << "Problem 2 -- Average fanout 0.0 (no nets found)" << endl;
+        }
 
         // ========================================================================
         // EE 201A Lab 1 Problem 3: Compute Average Wirelength

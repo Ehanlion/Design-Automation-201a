@@ -1,6 +1,3 @@
-DEFINE NangateLib NangateLib
-ASSIGN NangateLib writePath NangateLib
-ASSIGN NangateLib libMode shared
-DEFINE DesignLib DesignLib
-ASSIGN DesignLib writePath DesignLib
+DEFINE DesignLib ./DesignLib
+ASSIGN DesignLib writePath ./DesignLib
 ASSIGN DesignLib libMode shared

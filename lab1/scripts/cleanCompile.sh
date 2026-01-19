@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Change to lab1 directory (parent of scripts/)
+# Change to Lab1 directory (parent of scripts/)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LAB1_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$LAB1_DIR" || exit 1
@@ -11,10 +11,10 @@ cd "$LAB1_DIR" || exit 1
 echo "Cleaning up Problem 2 compilation files..."
 
 # Remove main file and test files
-rm -f lab1.o
-rm -f lab1
-rm -f lab1_test.o
-rm -f lab1_test
+rm -f Lab1.o
+rm -f Lab1
+rm -f Lab1_test.o
+rm -f Lab1_test
 
 echo "Cleanup complete!"
 echo ""

@@ -1,15 +1,15 @@
 #!/bin/bash
 
-# Change to lab1 directory (parent of scripts/)
+# Change to Lab1 directory (parent of scripts/)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LAB1_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$LAB1_DIR" || exit 1
 
-# Find all TODO comments in lab1 directory
+# Find all TODO comments in Lab1 directory
 # Searches recursively through all files
 
 echo "=========================================="
-echo "Finding all TODO/todo comments in lab1/"
+echo "Finding all TODO/todo comments in Lab1/"
 echo "=========================================="
 echo ""
 

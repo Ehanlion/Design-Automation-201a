@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Change to lab1 directory (parent of scripts/)
+# Change to Lab1 directory (parent of scripts/)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LAB1_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$LAB1_DIR" || exit 1
 
 # Problem 2 Compilation Script
-# Compiles the lab1.cpp program for fanout analysis
+# Compiles the Lab1.cpp program for fanout analysis
 
 echo "=========================================="
 echo "Problem 2: Fanout Analysis Compilation"
@@ -27,14 +27,14 @@ source lab1_setup
 # Clean previous compilation
 echo ""
 echo "Cleaning previous build..."
-rm -f lab1.o
-rm -f lab1
+rm -f Lab1.o
+rm -f Lab1
 
 # Compile the program
 echo ""
-echo "Compiling lab1.cpp..."
-echo "Command: make lab1 CCPATH=g++"
-make lab1 CCPATH=g++
+echo "Compiling Lab1.cpp..."
+echo "Command: make Lab1 CCPATH=g++"
+make Lab1 CCPATH=g++
 
 
 if [ $? -ne 0 ]; then

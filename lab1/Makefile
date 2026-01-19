@@ -21,7 +21,7 @@
 
 include /w/class.1/ee/ee201o/ee201ota/oa_macro.defs
 
-PROG = lab1
+PROG = Lab1
 
 DEFAULT: $(PROG)
 

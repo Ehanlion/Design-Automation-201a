@@ -6,24 +6,24 @@ cd "$LAB1_DIR" || exit 1
 
 source lab1_setup
 
-rm -f lab1_test.o
-rm -f lab1_test
+rm -f Lab1_test.o
+rm -f Lab1_test
 
 # Path to common object files (contains opnTechConflictObserver, opnLibDefListObserver, updateLibDefsFile)
 COMMON_DIR="/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common"
 
-# Compile lab1_test.cpp
+# Compile Lab1_test.cpp
 g++ -Wno-ctor-dtor-privacy -O -I/w/class.1/ee/ee201o/ee201ota/oa/include/oa \
     -I/w/class.1/ee/ee201o/ee201ota/oa/include \
-    -c lab1_test.cpp -o lab1_test.o
+    -c Lab1_test.cpp -o Lab1_test.o
 
 if [ $? -ne 0 ]; then
-    echo "ERROR: Compilation of lab1_test.cpp failed!"
+    echo "ERROR: Compilation of Lab1_test.cpp failed!"
     exit 1
 fi
 
 # Link test object file with common object files (observer classes and helper functions)
-g++ -Wno-ctor-dtor-privacy -O -o lab1_test lab1_test.o \
+g++ -Wno-ctor-dtor-privacy -O -o Lab1_test Lab1_test.o \
     ${COMMON_DIR}/commonTechObserver.o \
     ${COMMON_DIR}/commonLibDefListObserver.o \
     ${COMMON_DIR}/commonFunctions.o \

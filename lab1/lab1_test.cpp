@@ -3,15 +3,15 @@
 // UCLA EE 201A Lab 1 Test File
 
 #include "oaDesignDB.h"
+#include <algorithm>
+#include <fstream>
 #include <iostream>
+#include <map>
 #include <numeric>
 #include <string>
-#include <vector>
-#include <fstream>
-#include <map>
-#include <algorithm>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <vector>
 
 // Includes from a class library - helper utilities for OpenAccess
 #include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonFunctions.h"
@@ -30,6 +30,7 @@ void printNets(oaDesign* design);
 void printFilteredNets(oaDesign* design);
 vector<int> getFanout(oaDesign* design);
 double computeAverage(vector<int> arr);
+double computeAverage(vector<double> arr);
 void plotFanoutHistogram(vector<int> fanoutArray, const string& filename);
 vector<double> computeHPWL(oaDesign* design);
 double computeHPWLForNet(oaNet* net);
@@ -59,29 +60,29 @@ int main() {
 		double averageFanout = computeAverage(fanoutArray);
 		cout << "The average fanout is " << averageFanout << endl;
 		cout << endl;
-		
-		// Generate histogram plot
-		plotFanoutHistogram(fanoutArray, "plotting/fanout_histogram.html");
-		cout << "Histogram saved to plotting/fanout_histogram.html" << endl;
+
+		// Generate fanout histogram plot
+		if (!fanoutArray.empty()) {
+			plotFanoutHistogram(fanoutArray, "plotting/fanout_histogram.html");
+			cout << "Fanout Histogram saved to plotting/fanout_histogram.html" << endl;
+		} else {
+			cout << "\nCannot generate fanout histogram, no nets found!" << endl;
+		}
 
 		// Problem 3: Compute HPWL for nets with 2 ends
 		cout << "Problem 3: Compute HPWL for nets with 2 ends" << endl;
 		vector<double> hpwlArray = computeHPWL(design);
+		double averageHPWL = computeAverage(hpwlArray);
+		cout << "The average HPWL is " << averageHPWL << endl;
+		cout << "Total nets with 2 ends: " << hpwlArray.size() << endl;
+		cout << endl;
+
+		// Generate HPWL histogram plot
 		if (!hpwlArray.empty()) {
-			double sum = 0;
-			for (size_t i = 0; i < hpwlArray.size(); i++) {
-				sum += hpwlArray[i];
-			}
-			double averageHPWL = hpwlArray.size() > 0 ? sum / hpwlArray.size() : 0;
-			cout << "The average HPWL is " << averageHPWL << endl;
-			cout << "Total nets with 2 ends: " << hpwlArray.size() << endl;
-			cout << endl;
-			
-			// Generate HPWL histogram plot
 			plotHPWLHistogram(hpwlArray, "plotting/hpwl_histogram.html");
 			cout << "HPWL histogram saved to plotting/hpwl_histogram.html" << endl;
 		} else {
-			cout << "No nets with 2 ends found" << endl;
+			cout << "\nCannot generate HPWL histogram, no nets with 2 ends found!" << endl;
 		}
 	} catch (oaException& excp) {
 		cout << "ERROR: " << excp.getMsg() << endl;
@@ -156,8 +157,8 @@ oaDesign* openDesign() {
 }
 
 /*
-* Print the design names
-*/
+ * Print the design names
+ */
 void printDesignNames(oaDesign* design) {
 	oaString libName;
 	oaString cellName;
@@ -170,7 +171,6 @@ void printDesignNames(oaDesign* design) {
 	cout << " The cell name for this design is: " << cellName << endl;
 	cout << " The view name for this design is: " << viewName << endl;
 }
-
 
 /*
  * Print all the nets and net count
@@ -307,12 +307,37 @@ vector<int> getFanout(oaDesign* design) {
 }
 
 /*
- * Compute the average of an array of integers
+ * Compute the average of an array of ints
  */
 double computeAverage(vector<int> arr) {
 	int sum = accumulate(arr.begin(), arr.end(), 0);
 	double average = (double)sum / arr.size();
 	return average;
+}
+
+/*
+ * Compute the average of an array of doubles
+ */
+double computeAverage(vector<double> arr) {
+	double sum = accumulate(arr.begin(), arr.end(), 0);
+	double average = sum / arr.size();
+	return average;
+}
+
+/*
+ * Count the number of terminals on a net
+ */
+int countTerminals(oaNet* net) {
+	int terminalCount = 0;
+	oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
+	while (oaInstTerm* instTerm = instTermIterator.getNext()) {
+		terminalCount++;
+	}
+	oaIter<oaTerm> termIterator(net->getTerms());
+	while (oaTerm* term = termIterator.getNext()) {
+		terminalCount++;
+	}
+	return terminalCount;
 }
 
 // ========================================================================
@@ -325,13 +350,13 @@ double computeAverage(vector<int> arr) {
  */
 vector<double> computeHPWL(oaDesign* design) {
 	vector<double> hpwlArray;
-	
+
 	// Get the top block of the design
 	oaBlock* block = design->getTopBlock();
 	if (!block) {
 		return hpwlArray;
 	}
-	
+
 	// Iterate through all nets
 	oaIter<oaNet> netIterator(block->getNets());
 	while (oaNet* net = netIterator.getNext()) {
@@ -345,35 +370,36 @@ vector<double> computeHPWL(oaDesign* design) {
 		while (oaTerm* term = termIterator.getNext()) {
 			terminalCount++;
 		}
-		
+
 		// Only process nets with exactly 2 ends
 		if (terminalCount == 2) {
 			double hpwl = computeHPWLForNet(net);
-			if (hpwl >= 0) {  // Valid HPWL value
+			if (hpwl >= 0) { // Valid HPWL value
 				hpwlArray.push_back(hpwl);
 			}
 		}
 	}
-	
+
 	return hpwlArray;
 }
 
 /*
  * Compute HPWL for a single net
+ * HPWL means Horizontal-Plus-Vertical Wirelength
  * HPWL = (max_x - min_x) + (max_y - min_y)
  * This considers all shapes across all metal layers
  */
 double computeHPWLForNet(oaNet* net) {
 	oaBox bbox;
 	bool bboxInitialized = false;
-	
+
 	// Iterate through all shapes on the net (across all metal layers)
 	// This includes shapes on all routing layers
 	oaIter<oaShape> shapeIterator(net->getShapes());
 	while (oaShape* shape = shapeIterator.getNext()) {
 		oaBox shapeBox;
 		shape->getBBox(shapeBox);
-		
+
 		if (!bboxInitialized) {
 			bbox = shapeBox;
 			bboxInitialized = true;
@@ -383,27 +409,27 @@ double computeHPWLForNet(oaNet* net) {
 			oaPoint upperRight = bbox.upperRight();
 			oaPoint shapeLowerLeft = shapeBox.lowerLeft();
 			oaPoint shapeUpperRight = shapeBox.upperRight();
-			
+
 			oaInt4 minX = std::min(lowerLeft.x(), shapeLowerLeft.x());
 			oaInt4 minY = std::min(lowerLeft.y(), shapeLowerLeft.y());
 			oaInt4 maxX = std::max(upperRight.x(), shapeUpperRight.x());
 			oaInt4 maxY = std::max(upperRight.y(), shapeUpperRight.y());
-			
+
 			bbox.set(minX, minY, maxX, maxY);
 		}
 	}
-	
+
 	// If no shapes found, return -1 to indicate invalid
 	if (!bboxInitialized) {
 		return -1;
 	}
-	
+
 	// Calculate HPWL = (max_x - min_x) + (max_y - min_y)
 	oaPoint lowerLeft = bbox.lowerLeft();
 	oaPoint upperRight = bbox.upperRight();
 	oaInt4 width = upperRight.x() - lowerLeft.x();
 	oaInt4 height = upperRight.y() - lowerLeft.y();
-	
+
 	return (double)(width + height);
 }
 
@@ -414,15 +440,12 @@ double computeHPWLForNet(oaNet* net) {
 /*
  * Generate a histogram plot of fanout distribution
  * Creates an HTML file with Chart.js visualization
- * Parameters:
- *   fanoutArray - Vector of fanout values for each net
- *   filename - Output HTML filename
  */
 void plotFanoutHistogram(vector<int> fanoutArray, const string& filename) {
 	// Build histogram: count how many nets have each fanout value
 	map<int, int> histogram;
 	int maxFanout = 0;
-	
+
 	for (size_t i = 0; i < fanoutArray.size(); i++) {
 		int fanout = fanoutArray[i];
 		histogram[fanout]++;
@@ -430,7 +453,7 @@ void plotFanoutHistogram(vector<int> fanoutArray, const string& filename) {
 			maxFanout = fanout;
 		}
 	}
-	
+
 	// Create plotting directory if it doesn't exist
 	size_t lastSlash = filename.find_last_of("/");
 	if (lastSlash != string::npos) {
@@ -441,14 +464,14 @@ void plotFanoutHistogram(vector<int> fanoutArray, const string& filename) {
 			mkdir(dirPath.c_str(), 0755);
 		}
 	}
-	
+
 	// Create HTML file with Chart.js
 	ofstream htmlFile(filename.c_str());
 	if (!htmlFile.is_open()) {
 		cerr << "ERROR: Could not create histogram file " << filename << endl;
 		return;
 	}
-	
+
 	htmlFile << "<!DOCTYPE html>\n";
 	htmlFile << "<html>\n";
 	htmlFile << "<head>\n";
@@ -465,7 +488,7 @@ void plotFanoutHistogram(vector<int> fanoutArray, const string& filename) {
 	htmlFile << "    <div class=\"container\">\n";
 	htmlFile << "        <h1>Fanout Distribution Histogram</h1>\n";
 	htmlFile << "        <p><strong>Total Nets:</strong> " << fanoutArray.size() << "</p>\n";
-	
+
 	// Calculate average
 	double sum = 0;
 	for (size_t i = 0; i < fanoutArray.size(); i++) {
@@ -473,7 +496,7 @@ void plotFanoutHistogram(vector<int> fanoutArray, const string& filename) {
 	}
 	double avg = fanoutArray.size() > 0 ? sum / fanoutArray.size() : 0;
 	htmlFile << "        <p><strong>Average Fanout:</strong> " << avg << "</p>\n";
-	
+
 	htmlFile << "        <canvas id=\"fanoutChart\" width=\"400\" height=\"200\"></canvas>\n";
 	htmlFile << "    </div>\n";
 	htmlFile << "    <script>\n";
@@ -481,21 +504,23 @@ void plotFanoutHistogram(vector<int> fanoutArray, const string& filename) {
 	htmlFile << "        const fanoutChart = new Chart(ctx, {\n";
 	htmlFile << "            type: 'bar',\n";
 	htmlFile << "            data: {\n";
-	
+
 	// Generate labels (fanout values)
 	htmlFile << "                labels: [";
 	for (int i = 0; i <= maxFanout; i++) {
-		if (i > 0) htmlFile << ", ";
+		if (i > 0)
+			htmlFile << ", ";
 		htmlFile << i;
 	}
 	htmlFile << "],\n";
-	
+
 	// Generate data (counts)
 	htmlFile << "                datasets: [{\n";
 	htmlFile << "                    label: 'Number of Nets',\n";
 	htmlFile << "                    data: [";
 	for (int i = 0; i <= maxFanout; i++) {
-		if (i > 0) htmlFile << ", ";
+		if (i > 0)
+			htmlFile << ", ";
 		htmlFile << (histogram.find(i) != histogram.end() ? histogram[i] : 0);
 	}
 	htmlFile << "],\n";
@@ -537,9 +562,9 @@ void plotFanoutHistogram(vector<int> fanoutArray, const string& filename) {
 	htmlFile << "    </script>\n";
 	htmlFile << "</body>\n";
 	htmlFile << "</html>\n";
-	
+
 	htmlFile.close();
-	
+
 	// Also print summary to console
 	cout << "Fanout Histogram Summary:" << endl;
 	cout << "  Fanout Range: 0 to " << maxFanout << endl;
@@ -554,37 +579,38 @@ void plotFanoutHistogram(vector<int> fanoutArray, const string& filename) {
 /*
  * Generate a histogram plot of HPWL distribution
  * Creates an HTML file with Chart.js visualization
- * Parameters:
- *   hpwlArray - Vector of HPWL values for each net with 2 ends
- *   filename - Output HTML filename
  */
 void plotHPWLHistogram(vector<double> hpwlArray, const string& filename) {
 	if (hpwlArray.empty()) {
 		cerr << "ERROR: HPWL array is empty, cannot create histogram" << endl;
 		return;
 	}
-	
+
 	// Find min and max HPWL values
 	double minHPWL = hpwlArray[0];
 	double maxHPWL = hpwlArray[0];
 	for (size_t i = 1; i < hpwlArray.size(); i++) {
-		if (hpwlArray[i] < minHPWL) minHPWL = hpwlArray[i];
-		if (hpwlArray[i] > maxHPWL) maxHPWL = hpwlArray[i];
+		if (hpwlArray[i] < minHPWL)
+			minHPWL = hpwlArray[i];
+		if (hpwlArray[i] > maxHPWL)
+			maxHPWL = hpwlArray[i];
 	}
-	
+
 	// Create bins for histogram (use 20 bins)
 	const int numBins = 20;
 	double binWidth = (maxHPWL - minHPWL) / numBins;
-	if (binWidth == 0) binWidth = 1;  // Avoid division by zero
-	
-	map<int, int> histogram;  // bin index -> count
-	
+	if (binWidth == 0)
+		binWidth = 1; // Avoid division by zero
+
+	map<int, int> histogram; // bin index -> count
+
 	for (size_t i = 0; i < hpwlArray.size(); i++) {
 		int binIndex = (int)((hpwlArray[i] - minHPWL) / binWidth);
-		if (binIndex >= numBins) binIndex = numBins - 1;  // Put max value in last bin
+		if (binIndex >= numBins)
+			binIndex = numBins - 1; // Put max value in last bin
 		histogram[binIndex]++;
 	}
-	
+
 	// Create plotting directory if it doesn't exist
 	size_t lastSlash = filename.find_last_of("/");
 	if (lastSlash != string::npos) {
@@ -595,14 +621,14 @@ void plotHPWLHistogram(vector<double> hpwlArray, const string& filename) {
 			mkdir(dirPath.c_str(), 0755);
 		}
 	}
-	
+
 	// Create HTML file with Chart.js
 	ofstream htmlFile(filename.c_str());
 	if (!htmlFile.is_open()) {
 		cerr << "ERROR: Could not create histogram file " << filename << endl;
 		return;
 	}
-	
+
 	htmlFile << "<!DOCTYPE html>\n";
 	htmlFile << "<html>\n";
 	htmlFile << "<head>\n";
@@ -619,7 +645,7 @@ void plotHPWLHistogram(vector<double> hpwlArray, const string& filename) {
 	htmlFile << "    <div class=\"container\">\n";
 	htmlFile << "        <h1>HPWL Distribution Histogram</h1>\n";
 	htmlFile << "        <p><strong>Total Nets (2 ends):</strong> " << hpwlArray.size() << "</p>\n";
-	
+
 	// Calculate average
 	double sum = 0;
 	for (size_t i = 0; i < hpwlArray.size(); i++) {
@@ -629,7 +655,7 @@ void plotHPWLHistogram(vector<double> hpwlArray, const string& filename) {
 	htmlFile << "        <p><strong>Average HPWL:</strong> " << avg << "</p>\n";
 	htmlFile << "        <p><strong>Min HPWL:</strong> " << minHPWL << "</p>\n";
 	htmlFile << "        <p><strong>Max HPWL:</strong> " << maxHPWL << "</p>\n";
-	
+
 	htmlFile << "        <canvas id=\"hpwlChart\" width=\"400\" height=\"200\"></canvas>\n";
 	htmlFile << "    </div>\n";
 	htmlFile << "    <script>\n";
@@ -637,23 +663,25 @@ void plotHPWLHistogram(vector<double> hpwlArray, const string& filename) {
 	htmlFile << "        const hpwlChart = new Chart(ctx, {\n";
 	htmlFile << "            type: 'bar',\n";
 	htmlFile << "            data: {\n";
-	
+
 	// Generate labels (bin ranges)
 	htmlFile << "                labels: [";
 	for (int i = 0; i < numBins; i++) {
-		if (i > 0) htmlFile << ", ";
+		if (i > 0)
+			htmlFile << ", ";
 		double binStart = minHPWL + i * binWidth;
 		double binEnd = minHPWL + (i + 1) * binWidth;
 		htmlFile << "\"" << binStart << "-" << binEnd << "\"";
 	}
 	htmlFile << "],\n";
-	
+
 	// Generate data (counts)
 	htmlFile << "                datasets: [{\n";
 	htmlFile << "                    label: 'Number of Nets',\n";
 	htmlFile << "                    data: [";
 	for (int i = 0; i < numBins; i++) {
-		if (i > 0) htmlFile << ", ";
+		if (i > 0)
+			htmlFile << ", ";
 		htmlFile << (histogram.find(i) != histogram.end() ? histogram[i] : 0);
 	}
 	htmlFile << "],\n";
@@ -699,13 +727,12 @@ void plotHPWLHistogram(vector<double> hpwlArray, const string& filename) {
 	htmlFile << "    </script>\n";
 	htmlFile << "</body>\n";
 	htmlFile << "</html>\n";
-	
+
 	htmlFile.close();
-	
+
 	// Also print summary to console
 	cout << "HPWL Histogram Summary:" << endl;
 	cout << "  HPWL Range: " << minHPWL << " to " << maxHPWL << endl;
 	cout << "  Total Nets (2 ends): " << hpwlArray.size() << endl;
 	cout << "  Average HPWL: " << avg << endl;
 }
-

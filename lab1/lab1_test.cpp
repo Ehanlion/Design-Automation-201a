@@ -21,7 +21,9 @@ static oaNativeNS ns;
 void setupOpenAccess();
 oaDesign* openDesign();
 void printNets(oaDesign* design);
+void printFilteredNets(oaDesign* design);
 vector<int> computeAverageFanout(oaDesign* design);
+vector<int> computeAverageFanoutFiltered(oaDesign* design);
 double computeAverage(vector<int> arr);
 
 /*
@@ -32,18 +34,25 @@ int main() {
 	cout << "Testing for Lab1" << endl;
 	try {
 		// Problem 1: setup OpenAccess
-        cout << "Problem 1: setup OpenAccess" << endl;
+		cout << "Problem 1: setup OpenAccess" << endl;
 		setupOpenAccess();
 		oaDesign* design = openDesign();
-        printNets(design);
-        cout << endl;
+		printNets(design);
+		printFilteredNets(design);
+		cout << endl;
 
 		// Problem 2: Compute Average Fanout
-        cout << "Problem 2: Compute Average Fanout" << endl;
+		cout << "Problem 2: Compute Average Fanout" << endl;
 		vector<int> fanoutArray = computeAverageFanout(design);
+		vector<int> filteredFanoutArray = computeAverageFanoutFiltered(design);
 		double averageFanout = computeAverage(fanoutArray);
+		double averageFilteredFanout = computeAverage(filteredFanoutArray);
 		cout << "The average fanout is " << averageFanout << endl;
-        cout << endl;
+		cout << "The average filtered fanout is " << averageFilteredFanout << endl;
+		cout << endl;
+
+		// Problem 3: ...
+		// TODO: do Part 3 for test
 	} catch (oaException& excp) {
 		cout << "ERROR: " << excp.getMsg() << endl;
 		exit(1);
@@ -121,6 +130,9 @@ oaDesign* openDesign() {
  */
 void printNets(oaDesign* design) {
 	oaBlock* block = design->getTopBlock();
+	if (!block) {
+		block = oaBlock::create(design);
+	}
 	if (block) {
 		oaString netName;
 		cout << "The following nets exist in this design." << endl;
@@ -140,18 +152,48 @@ void printNets(oaDesign* design) {
 			cout << endl;
 		}
 
-        cout << "Net count: " << count << endl;
+		cout << "Net count: " << count << endl;
 	} else {
 		cout << "There is no block in this design" << endl;
 	}
 }
 
 /*
+* Print out the nets that are being filtered out
+* Filtered nets are: VDD, VSS, blif_clk_net, blif_reset_net, tie1, tie0
+*/
+void printFilteredNets(oaDesign* design) {
+	oaBlock* block = design->getTopBlock();
+	if (!block) {
+		block = oaBlock::create(design);
+	}
+	if (block) {
+		oaString netName;
+		cout << "Nets to be filtered out:" << endl;
+		int count = 0;
+		oaIter<oaNet> netIterator(block->getNets());
+		while (oaNet* net = netIterator.getNext()) {
+			oaString netName;
+			net->getName(ns, netName);
+			if (netName == "VDD" ||
+				netName == "VSS" ||
+				netName == "blif_clk_net" ||
+				netName == "blif_reset_net" ||
+				netName == "tie1" ||
+				netName == "tie0") {
+				cout << "\t" << netName;
+				count++;
+			}
+		}
+		cout << endl;
+		cout << "Filtered Net count: " << count << endl;
+	} else {
+		cout << "No filtered nets found" << endl;
+	}
+}
+
+/*
  * Computes the average fanout of the design
- * Parameters:
- *   design - Pointer to the design to compute the average fanout of
- * Returns:
- *   Vector of ints containing the fanout values for each net
  */
 vector<int> computeAverageFanout(oaDesign* design) {
 	vector<int> fanoutArray;
@@ -160,6 +202,77 @@ vector<int> computeAverageFanout(oaDesign* design) {
 	oaBlock* block = design->getTopBlock();
 	if (!block) {
 		block = oaBlock::create(design);
+	}
+
+	// Iterate through all nets
+	int totalNets = 0;
+	oaIter<oaNet> netIterator(block->getNets());
+	while (oaNet* net = netIterator.getNext()) {
+		// Increment total nets count
+		totalNets++;
+
+		// Count instance terminals & primary terminals
+		int fanout = 0;
+		oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
+		while (oaInstTerm* instTerm = instTermIterator.getNext()) {
+			fanout++;
+		}
+		oaIter<oaTerm> termIterator(net->getTerms());
+		while (oaTerm* term = termIterator.getNext()) {
+			fanout++;
+		}
+
+		// Store fanout value for this net
+		fanoutArray.push_back(fanout);
+	}
+
+	return fanoutArray;
+}
+
+/*
+ * Compute average fanout for filtered nets
+ * Filtered nets are: VDD, VSS, blif_clk_net, blif_reset_net, tie1, tie0
+ */
+vector<int> computeAverageFanoutFiltered(oaDesign* design) {
+	vector<int> fanoutArray;
+
+	// Get the top block of the design
+	oaBlock* block = design->getTopBlock();
+	if (!block) {
+		block = oaBlock::create(design);
+	}
+
+	// Iterate through all nets
+	int totalNets = 0;
+	oaIter<oaNet> netIterator(block->getNets());
+	while (oaNet* net = netIterator.getNext()) {
+		oaString netName;
+		net->getName(ns, netName);
+		if (netName == "VDD" ||
+            netName == "VSS" ||
+            netName == "blif_clk_net" ||
+            netName == "blif_reset_net" ||
+            netName == "tie1" ||
+            netName == "tie0") {
+			continue; // Skip special nets
+		}
+
+		// Increment total nets count
+		totalNets++;
+
+		// Count instance terminals & primary terminals
+		int fanout = 0;
+		oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
+		while (oaInstTerm* instTerm = instTermIterator.getNext()) {
+			fanout++;
+		}
+		oaIter<oaTerm> termIterator(net->getTerms());
+		while (oaTerm* term = termIterator.getNext()) {
+			fanout++;
+		}
+
+		// Store fanout value for this net
+		fanoutArray.push_back(fanout);
 	}
 
 	return fanoutArray;

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Compile the program
+./compileTest.sh
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LAB1_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$LAB1_DIR" || exit 1

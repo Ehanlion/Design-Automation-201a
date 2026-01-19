@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Compile the program
+./compile.sh
+
 # Change to lab1 directory (parent of scripts/)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LAB1_DIR="$(dirname "$SCRIPT_DIR")"

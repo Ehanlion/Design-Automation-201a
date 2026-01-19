@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fanout Histogram</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { text-align: center; color: #333; }
+        canvas { background: white; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Fanout Distribution Histogram</h1>
+        <p><strong>Total Nets:</strong> 320</p>
+        <p><strong>Average Fanout:</strong> 3.40625</p>
+        <canvas id="fanoutChart" width="400" height="200"></canvas>
+    </div>
+    <script>
+        const ctx = document.getElementById('fanoutChart').getContext('2d');
+        const fanoutChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+                datasets: [{
+                    label: 'Number of Nets',
+                    data: [0, 15, 158, 60, 31, 15, 11, 5, 3, 4, 6, 4, 3, 1, 0, 1, 2, 0, 0, 1],
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Nets'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Fanout Value'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Distribution of Fanout Values Across All Nets'
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

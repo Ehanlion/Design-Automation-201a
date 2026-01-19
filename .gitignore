@@ -1,7 +1,5 @@
 _Training/
 .clangd
-lab1
-lab1_test
 *.o
 *.defs
 *.log

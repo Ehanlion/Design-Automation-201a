@@ -38,6 +38,8 @@ void plotFanoutHistogram(vector<int> fanoutArray, const string& filename);
 vector<double> computeHPWL(oaDesign* design);
 double computeHPWLForNet(oaNet* net);
 void plotHPWLHistogram(vector<double> hpwlArray, const string& filename);
+void plotFanoutHistogramTerminal(vector<int> fanoutArray);
+void plotHPWLHistogramTerminal(vector<double> hpwlArray);
 
 /*
  * Main function
@@ -68,17 +70,7 @@ int main() {
 		if (!fanoutArray.empty()) {
 			plotFanoutHistogram(fanoutArray, "plotting/fanout_histogram.html");
 			cout << "Fanout Histogram saved to plotting/fanout_histogram.html" << endl;
-			// Also plot to terminal
-			HistogramConfig fanoutConfig;
-			fanoutConfig.title = "Fanout Distribution Histogram";
-			fanoutConfig.xAxisLabel = "Fanout Value";
-			fanoutConfig.yAxisLabel = "Number of Nets";
-			fanoutConfig.description = "Distribution of Fanout Values Across All Nets";
-			fanoutConfig.totalLabel = "Total Nets";
-			fanoutConfig.averageLabel = "Average Fanout";
-			fanoutConfig.useBins = false;
-			fanoutConfig.labelWidth = 11;
-			TerminalPlotter::plotHistogram(fanoutArray, fanoutConfig);
+			plotFanoutHistogramTerminal(fanoutArray);
 		} else {
 			cout << "\nCannot generate fanout histogram, no nets found!" << endl;
 		}
@@ -97,19 +89,7 @@ int main() {
 			plotHPWLHistogram(hpwlArray, "plotting/hpwl_histogram.html");
 			cout << "HPWL histogram saved to plotting/hpwl_histogram.html" << endl;
 			// Also plot to terminal
-			HistogramConfig hpwlConfig;
-			hpwlConfig.title = "HPWL Distribution Histogram";
-			hpwlConfig.xAxisLabel = "HPWL Range";
-			hpwlConfig.yAxisLabel = "Number of Nets";
-			hpwlConfig.description = "Distribution of HPWL Values for Nets with 2 Ends";
-			hpwlConfig.totalLabel = "Total Nets (2 ends)";
-			hpwlConfig.averageLabel = "Average HPWL";
-			hpwlConfig.minLabel = "Min HPWL";
-			hpwlConfig.maxLabel = "Max HPWL";
-			hpwlConfig.useBins = true;
-			hpwlConfig.numBins = 20;
-			hpwlConfig.labelWidth = 28;
-			TerminalPlotter::plotHistogram(hpwlArray, hpwlConfig);
+			plotHPWLHistogramTerminal(hpwlArray);
 		} else {
 			cout << "\nCannot generate HPWL histogram, no nets with 2 ends found!" << endl;
 		}
@@ -771,4 +751,32 @@ void plotHPWLHistogram(vector<double> hpwlArray, const string& filename) {
 			cout << "  HPWL " << binStart << "-" << binEnd << ": " << it->second << " nets" << endl;
 		}
 	}
+}
+
+/*
+* Plot the fanout histogram to the terminal
+*/
+void plotFanoutHistogramTerminal(vector<int> fanoutArray) {
+	HistogramConfig fanoutConfig;
+	fanoutConfig.title = "Fanout Distribution Histogram";
+	fanoutConfig.xAxisLabel = "Fanout Value";
+	fanoutConfig.yAxisLabel = "Number of Nets";
+	fanoutConfig.description = "Distribution of Fanout Values Across All Nets";
+	fanoutConfig.totalLabel = "Total Nets";
+	fanoutConfig.averageLabel = "Average Fanout";
+	TerminalPlotter::plotHistogram(fanoutArray, fanoutConfig);
+}
+
+/*
+* Plot the HPWL histogram to the terminal
+*/
+void plotHPWLHistogramTerminal(vector<double> hpwlArray) {
+	HistogramConfig hpwlConfig;
+	hpwlConfig.title = "HPWL Distribution Histogram";
+	hpwlConfig.xAxisLabel = "HPWL Range";
+	hpwlConfig.yAxisLabel = "Number of Nets";
+	hpwlConfig.description = "Distribution of HPWL Values for Nets with 2 Ends";
+	hpwlConfig.totalLabel = "Total Nets (2 ends)";
+	hpwlConfig.averageLabel = "Average HPWL";
+	TerminalPlotter::plotHistogram(hpwlArray, hpwlConfig);
 }

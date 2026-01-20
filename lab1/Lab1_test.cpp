@@ -34,9 +34,9 @@ void printFilteredNets(oaDesign* design);
 vector<int> getFanout(oaDesign* design);
 double computeAverage(vector<int> arr);
 double computeAverage(vector<double> arr);
-void plotFanoutHistogram(vector<int> fanoutArray, const string& filename);
 vector<double> computeHPWL(oaDesign* design);
 double computeHPWLForNet(oaNet* net);
+void plotFanoutHistogram(vector<int> fanoutArray, const string& filename);
 void plotHPWLHistogram(vector<double> hpwlArray, const string& filename);
 void plotFanoutHistogramTerminal(vector<int> fanoutArray);
 void plotHPWLHistogramTerminal(vector<double> hpwlArray);
@@ -46,10 +46,9 @@ void plotHPWLHistogramTerminal(vector<double> hpwlArray);
  * Tests the setupOpenAccess function
  */
 int main() {
-	cout << "Testing for Lab1" << endl;
 	try {
 		// Problem 1: setup OpenAccess
-		cout << "----- Ethan Owen: Problem 1 -----" << endl;
+		cout << "\n----- Ethan Owen: Problem 1 -----" << endl;
 		setupOpenAccess();
 		oaDesign* design = openDesign();
 		printNets(design);
@@ -93,6 +92,7 @@ int main() {
 		} else {
 			cout << "\nCannot generate HPWL histogram, no nets with 2 ends found!" << endl;
 		}
+		cout << endl;
 	} catch (oaCompatibilityError& ex) {
 		handleFBCError(ex);
 		exit(1);

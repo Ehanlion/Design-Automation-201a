@@ -47,6 +47,9 @@ void plotHPWLHistogramTerminal(vector<double> hpwlArray);
  * Tests the setupOpenAccess function
  */
 int main() {
+	// Enable flag for HTML file generation
+	const bool ENABLE_HTML_GENERATION = false;
+
 	try {
 		// Problem 1: setup OpenAccess
 		cout << "\n----- Ethan Owen: Problem 1 -----" << endl;
@@ -68,8 +71,10 @@ int main() {
 
 		// Generate fanout histogram plot
 		if (!fanoutArray.empty()) {
-			plotFanoutHistogram(fanoutArray, "plotting/fanout_histogram.html");
-			cout << "Fanout Histogram saved to plotting/fanout_histogram.html" << endl;
+			if (ENABLE_HTML_GENERATION) {
+				plotFanoutHistogram(fanoutArray, "plotting/fanout_histogram.html");
+				cout << "Fanout Histogram saved to plotting/fanout_histogram.html" << endl;
+			}
 			plotFanoutHistogramTerminal(fanoutArray);
 		} else {
 			cout << "\nCannot generate fanout histogram, no nets found!" << endl;
@@ -86,8 +91,10 @@ int main() {
 
 		// Generate HPWL histogram plot
 		if (!hpwlArray.empty()) {
-			plotHPWLHistogram(hpwlArray, "plotting/hpwl_histogram.html");
-			cout << "HPWL histogram saved to plotting/hpwl_histogram.html" << endl;
+			if (ENABLE_HTML_GENERATION) {
+				plotHPWLHistogram(hpwlArray, "plotting/hpwl_histogram.html");
+				cout << "HPWL histogram saved to plotting/hpwl_histogram.html" << endl;
+			}
 			// Also plot to terminal
 			plotHPWLHistogramTerminal(hpwlArray);
 		} else {

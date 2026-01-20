@@ -47,6 +47,9 @@ void plotHPWLHistogramTerminal(vector<double> hpwlArray);
  * Tests the setupOpenAccess function
  */
 int main() {
+	// Enable flag for HTML file generation
+	const bool ENABLE_HTML_GENERATION = false;
+
 	try {
 		// Problem 1: setup OpenAccess
 		cout << "\n----- Ethan Owen: Problem 1 -----" << endl;
@@ -68,8 +71,10 @@ int main() {
 
 		// Generate fanout histogram plot
 		if (!fanoutArray.empty()) {
-			plotFanoutHistogram(fanoutArray, "plotting/fanout_histogram.html");
-			cout << "Fanout Histogram saved to plotting/fanout_histogram.html" << endl;
+			if (ENABLE_HTML_GENERATION) {
+				plotFanoutHistogram(fanoutArray, "plotting/fanout_histogram.html");
+				cout << "Fanout Histogram saved to plotting/fanout_histogram.html" << endl;
+			}
 			plotFanoutHistogramTerminal(fanoutArray);
 		} else {
 			cout << "\nCannot generate fanout histogram, no nets found!" << endl;
@@ -86,8 +91,10 @@ int main() {
 
 		// Generate HPWL histogram plot
 		if (!hpwlArray.empty()) {
-			plotHPWLHistogram(hpwlArray, "plotting/hpwl_histogram.html");
-			cout << "HPWL histogram saved to plotting/hpwl_histogram.html" << endl;
+			if (ENABLE_HTML_GENERATION) {
+				plotHPWLHistogram(hpwlArray, "plotting/hpwl_histogram.html");
+				cout << "HPWL histogram saved to plotting/hpwl_histogram.html" << endl;
+			}
 			// Also plot to terminal
 			plotHPWLHistogramTerminal(hpwlArray);
 		} else {
@@ -269,8 +276,11 @@ void printFilteredNets(oaDesign* design) {
 /*
  * Compute average fanout for filtered nets
  * Filtered nets are: VDD, VSS, blif_clk_net, blif_reset_net, tie1, tie0
+ * New logic to count fanout for a net
+ * Counts all instance terminals as loads
+ * Counts primary I/O terminals as loads, only counting inputs
  */
-vector<int> getFanout(oaDesign* design) {
+ vector<int> getFanout(oaDesign* design) {
 	vector<int> fanoutArray;
 
 	// Get the top block of the design
@@ -306,15 +316,27 @@ vector<int> getFanout(oaDesign* design) {
 		// Increment total nets count
 		totalNets++;
 
-		// Count instance terminals & primary terminals
+		// Count fanout for a net
 		int fanout = 0;
+		
+		// Count all instance terminals as loads (inputs)
 		oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
 		while (oaInstTerm* instTerm = instTermIterator.getNext()) {
 			fanout++;
 		}
+		
+		// For primary I/O terminals (terms), only count INPUTs as loads
 		oaIter<oaTerm> termIterator(net->getTerms());
 		while (oaTerm* term = termIterator.getNext()) {
-			fanout++;
+			// Check if this is a scalar term
+			if (term->getType() == oacScalarTermType) {
+				oaScalarTerm* scalarTerm = (oaScalarTerm*)term;
+				oaTermType termType = scalarTerm->getTermType();
+				// Only count primary inputs
+				if (termType == oacInputTermType) {
+					fanout++;
+				}
+			}
 		}
 
 		// Store fanout value for this net

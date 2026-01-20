@@ -27,6 +27,13 @@ Assumtions here:
 - Net types were not defined, so check was superficial, but still done
 - Fanout defined as sum of all connections on net, including `oaInstTerm` and `oaTerm`
 
+Method
+- Isolate each net in the design
+- For each net count `oaInstTerm` and `oaTerm`
+- For InstTerms, count all for fanout
+- For Terms, ignore outputs but count everything else for fanout
+- Then average over all the saved fanout values 
+
 # Part 3: HPWL (half-perimeter wire length)
 
 Assumtions here:
@@ -54,4 +61,8 @@ Plotting techniques:
 
 # Plotting Here
 
-I saved images of the plots after writing this in markdown, later joining them with a PDF merging tool.
+**Plot for Part 2**
+![[Pasted image 20260119173442.png]]
+
+**Plot for Part 3**
+![[Pasted image 20260119173435.png]]

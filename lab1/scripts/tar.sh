@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# TAR and submit the Lab1 files
+# TAR the Lab1 files (use submit.sh to submit)
 # Create files:
 # directory: Owen-Ethan_905452983_palatics_Lab1/
 # files in directory: 
@@ -11,9 +11,9 @@
 # Then compress the directory into a tar file
 # Tar file: Owen-Ethan_905452983_palatics_Lab1_pin1234.tar.gz
 
-# Submit file
+# Submit file using submit.sh script
 # but make sure to set perms with chmod -R go+rx for all files
-# submit path: /w/class.1/ee/ee201o/ee201ot2/submission/Lab1/
+# submit path: /w/class.1/ee/ee201o/ee201ot2/submission/lab1/
 
 # Configuration
 DIR_NAME="Owen-Ethan_905452983_palatics_Lab1"
@@ -97,13 +97,14 @@ if [ -f "$TAR_FILE" ]; then
     echo "Successfully created: $TAR_FILE"
     echo "File size: $(du -h "$TAR_FILE" | cut -f1)"
     echo "Location: $(pwd)/$TAR_FILE"
+    
+    # Set permissions on tar file (required for submission)
+    echo "Setting permissions on tar file (chmod go+rx)..."
+    chmod go+rx "$TAR_FILE"
+    echo ""
+    echo "Tarball created successfully!"
+    echo "To submit, run: ./scripts/submit.sh"
 else
     echo "ERROR: Failed to create tar file!"
     exit 1
 fi
-
-# Submit commands (commented out - uncomment when ready to submit)
-# SUBMIT_PATH="/w/class.1/ee/ee201o/ee201ot2/submission/Lab1/"
-# echo "Submitting to: $SUBMIT_PATH"
-# cp "$TAR_FILE" "$SUBMIT_PATH"
-# echo "Submission complete!"

@@ -166,6 +166,9 @@ oaDesign* openDesign() {
 	// Then we can open the design
 	oaDesign* design = oaDesign::open(oaLibrary, oaCell, oaView, viewType, 'r');
 
+	// Adding to match previous output format
+	cout << "The design is created and opened in 'write' mode." << endl;
+
 	return design;
 }
 
@@ -599,16 +602,6 @@ void plotFanoutHistogram(vector<int> fanoutArray, const string& filename) {
 	htmlFile << "</html>\n";
 
 	htmlFile.close();
-
-	// Also print summary to console
-	cout << "Fanout Histogram Summary:" << endl;
-	cout << "  Fanout Range: 0 to " << maxFanout << endl;
-	cout << "  Total Nets: " << fanoutArray.size() << endl;
-	for (map<int, int>::iterator it = histogram.begin(); it != histogram.end(); ++it) {
-		if (it->second > 0) {
-			cout << "  Fanout " << it->first << ": " << it->second << " nets" << endl;
-		}
-	}
 }
 
 /*
@@ -764,19 +757,6 @@ void plotHPWLHistogram(vector<double> hpwlArray, const string& filename) {
 	htmlFile << "</html>\n";
 
 	htmlFile.close();
-
-	// Also print summary to console
-	cout << "HPWL Histogram Summary:" << endl;
-	cout << "  HPWL Range: " << minHPWL << " to " << maxHPWL << endl;
-	cout << "  Average HPWL: " << avg << endl;
-	cout << "  Total Nets (2 ends): " << hpwlArray.size() << endl;
-	for (map<int, int>::iterator it = histogram.begin(); it != histogram.end(); ++it) {
-		if (it->second > 0) {
-			double binStart = minHPWL + it->first * binWidth;
-			double binEnd = minHPWL + (it->first + 1) * binWidth;
-			cout << "  HPWL " << binStart << "-" << binEnd << ": " << it->second << " nets" << endl;
-		}
-	}
 }
 
 /*

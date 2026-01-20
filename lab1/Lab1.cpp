@@ -1,127 +1,199 @@
 // Author: Ethan Owen
 // UID: 905452983
-// UCLA EE 201A Lab 1
+// UCLA EE 201A Lab 1 Test File
 
-// *****************************************************************************
-// Lab1.cpp
-//
-// The following tasks are performed by this program
-//  1. Derive an oaTech observer to handle conflicts in the technology hierarchy
-//  2. Derive an oaLibDefsList observer to handle warnings related to lib.defs
-//  3. Open the design
-//  4. Print the library name
-//  5. Print the cell name
-//  6. Print the view name
-//  7. Create nets with the names "Hello" and "World"
-//  8. Save these nets
-//  9. Run the net iterator and print the existing nets in the design
-//
-// ****************************************************************************
-// Except as specified in the OpenAccess terms of use of Cadence or Silicon
-// Integration Initiative, this material may not be copied, modified,
-// re-published, uploaded, executed, or distributed in any way, in any medium,
-// in whole or in part, without prior written permission from Cadence.
-//
-//                Copyright 2002-2005 Cadence Design Systems, Inc.
-//                           All Rights Reserved.
-//
-// To distribute any derivative work based upon this file you must first contact
-// Si2 @ contracts@si2.org.
-//
-// *****************************************************************************
-// *****************************************************************************
-
-// Standard C++ input/output library for printing to console
-#include <iostream>
-// Standard C++ vector and numeric algorithms
-#include <numeric>
-#include <vector>
-// OpenAccess Design Database API - provides access to IC design data structures
 #include "oaDesignDB.h"
+#include <algorithm>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <map>
+#include <numeric>
+#include <sstream>
+#include <string>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <vector>
 
 // Includes from a class library - helper utilities for OpenAccess
-// Observer classes handle warnings/conflicts that may occur during design
-// operations
 #include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonFunctions.h"
 #include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonLibDefListObserver.h"
 #include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonTechObserver.h"
 
-// Using OpenAccess namespace - allows us to use oaDesign, oaBlock, etc. without
-// "oa::" prefix
-using namespace oa;
-// Using standard namespace - allows us to use cout, endl, etc. without "std::"
-// prefix
-using namespace std;
+// Terminal plotting code (inlined to remove dependency on TerminalPlotter.h)
 
-// OpenAccess uses a "namespace" system for naming objects. oaNativeNS is the
-// default namespace This is used when getting/setting names of libraries,
-// cells, views, nets, etc.
+using namespace std;
+using namespace oa;
 static oaNativeNS ns;
 
-// ****************************************************************************
-// printDesignNames()
-//
-// This function extracts and displays the hierarchical names of an OpenAccess
-// design. In OpenAccess, designs are organized hierarchically:
-//   - Library: A collection of cells (like a folder containing multiple
-//   designs)
-//   - Cell: A specific design or component (like a file in that folder)
-//   - View: A particular representation of that cell (e.g., "layout",
-//   "schematic", "netlist")
-//
-// Parameters:
-//   design - Pointer to an oaDesign object that has already been opened
-// ****************************************************************************
+// Function prototypes
+void setupOpenAccess();
+oaDesign* openDesign();
+void printDesignNames(oaDesign* design);
+void printNets(oaDesign* design);
+void printFilteredNets(oaDesign* design);
+vector<int> getFanout(oaDesign* design);
+double computeAverage(vector<int> arr);
+double computeAverage(vector<double> arr);
+vector<double> computeHPWL(oaDesign* design);
+double computeHPWLForNet(oaNet* net);
+void plotFanoutHistogramTerminal(vector<int> fanoutArray);
+void plotHPWLHistogramTerminal(vector<double> hpwlArray);
+
+/*
+ * Main function
+ * Tests the setupOpenAccess function
+ */
+int main() {
+	try {
+		// Problem 1: setup OpenAccess
+		cout << "\n----- Ethan Owen: Problem 1 -----" << endl;
+		setupOpenAccess();
+		oaDesign* design = openDesign();
+		printNets(design);
+		cout << endl;
+		printFilteredNets(design);
+		cout << endl;
+		printDesignNames(design);
+		cout << endl;
+
+		// Problem 2: Compute Average Fanout
+		cout << "----- Ethan Owen: Problem 2 -----" << endl;
+		vector<int> fanoutArray = getFanout(design);
+		double averageFanout = computeAverage(fanoutArray);
+		cout << "Problem 2 -- Average fanout " << averageFanout << endl;
+		cout << endl;
+
+		// Generate fanout histogram plot
+		if (!fanoutArray.empty()) {
+			plotFanoutHistogramTerminal(fanoutArray);
+		} else {
+			cout << "\nCannot generate fanout histogram, no nets found!" << endl;
+		}
+		cout << endl;
+
+		// Problem 3: Compute HPWL for nets with 2 ends
+		cout << "----- Ethan Owen: Problem 3 -----" << endl;
+		vector<double> hpwlArray = computeHPWL(design);
+		double averageHPWL = computeAverage(hpwlArray);
+		cout << "Problem 3 -- Average wirelength " << averageHPWL << endl;
+		cout << "Total nets with 2 ends: " << hpwlArray.size() << endl;
+		cout << endl;
+
+		// Generate HPWL histogram plot
+		if (!hpwlArray.empty()) {
+			// Also plot to terminal
+			plotHPWLHistogramTerminal(hpwlArray);
+		} else {
+			cout << "\nCannot generate HPWL histogram, no nets with 2 ends found!" << endl;
+		}
+		cout << endl;
+	} catch (oaCompatibilityError& ex) {
+		handleFBCError(ex);
+		exit(1);
+
+	} catch (oaException& excp) {
+		cout << "ERROR: " << excp.getMsg() << endl;
+		exit(1);
+	}
+	return 0;
+}
+
+/*
+ * Sets up the OpenAccess environment
+ */
+void setupOpenAccess() {
+	oaDesignInit(oacAPIMajorRevNumber, oacAPIMinorRevNumber, 3);
+	oaString libPath("./DesignLib");
+	oaString library("DesignLib");
+	oaViewType* viewType = oaViewType::get(oacMaskLayout);
+	oaString cell("s1196_bench");
+	oaString view("layout");
+	oaScalarName libName(ns, library);
+	oaScalarName cellName(ns, cell);
+	oaScalarName viewName(ns, view);
+	oaScalarName libraryName(ns, library);
+	opnTechConflictObserver myTechConflictObserver(1);
+	opnLibDefListObserver myLibDefListObserver(1);
+	oaLib* lib = oaLib::find(libraryName);
+	if (!lib) {
+		if (oaLib::exists(libPath)) {
+			lib = oaLib::open(libraryName, libPath);
+		} else {
+			char* DMSystem = getenv("DMSystem");
+			if (DMSystem) {
+				lib = oaLib::create(libraryName, libPath, oacSharedLibMode, DMSystem);
+			} else {
+				lib = oaLib::create(libraryName, libPath);
+			}
+		}
+		if (lib) {
+			updateLibDefsFile(libraryName, libPath);
+		}
+	}
+}
+
+/*
+ * Open the design
+ */
+oaDesign* openDesign() {
+	// First we need to get the strings here
+	string libPathName = "./DesignLib";
+	string libraryName = "DesignLib";
+	string cellName = "s1196_bench";
+	string viewName = "layout";
+
+	// Then we need to convert the strings to const char *
+	const char* libPathNameC = libPathName.c_str();
+	const char* libraryNameC = libraryName.c_str();
+	const char* cellNameC = cellName.c_str();
+	const char* viewNameC = viewName.c_str();
+
+	// Then we need to create the oaScalarName objects
+	oaScalarName oaLib(ns, libraryNameC);
+	oaScalarName oaCell(ns, cellNameC);
+	oaScalarName oaView(ns, viewNameC);
+	oaScalarName oaLibrary(ns, libraryNameC);
+
+	// Then we need the view type
+	oaViewType* viewType = oaViewType::get(oacMaskLayout);
+
+	// Then we can open the design
+	oaDesign* design = oaDesign::open(oaLibrary, oaCell, oaView, viewType, 'r');
+
+	// Adding to match previous output format
+	cout << "The design is created and opened in 'write' mode." << endl;
+
+	return design;
+}
+
+/*
+ * Print the design names
+ */
 void printDesignNames(oaDesign* design) {
-	// oaString is OpenAccess's string type - used to store names
 	oaString libName;
 	oaString cellName;
 	oaString viewName;
-
-	// Extract the names from the design object using the namespace (ns)
-	// These methods populate the oaString variables with the actual names
 	design->getLibName(ns, libName);
 	design->getCellName(ns, cellName);
 	design->getViewName(ns, viewName);
-
-	// Print the extracted names to the console
-	cout << "\tThe library name for this design is : " << libName << endl;
-	cout << "\tThe cell name for this design is : " << cellName << endl;
-	cout << "\tThe view name for this design is : " << viewName << endl;
+	cout << "The design names are:" << endl;
+	cout << " The library name for this design is: " << libName << endl;
+	cout << " The cell name for this design is: " << cellName << endl;
+	cout << " The view name for this design is: " << viewName << endl;
 }
 
-// ****************************************************************************
-// printNets()
-//
-// This function iterates through all nets in a design and prints their names.
-// A "net" in IC design represents an electrical connection (wire) between
-// components. A "block" is the container that holds all the design elements
-// (nets, instances, etc.) The "TopBlock" is the top-level block of the design
-// hierarchy.
-//
-// Parameters:
-//   design - Pointer to an oaDesign object that has already been opened
-// ****************************************************************************
+/*
+ * Print all the nets and net count
+ */
 void printNets(oaDesign* design) {
-	// Get the TopBlock - this is where all the nets, instances, and other design
-	// elements live
 	oaBlock* block = design->getTopBlock();
-
-	// Check if the block exists (some designs might not have a block yet)
-	// if (block) {
-	//     oaString netName;
-	//     cout << "The following nets exist in this design." << endl;
-	//     oaIter<oaNet> netIterator(block->getNets());
-	//     while (oaNet *net = netIterator.getNext()) {
-	//         net->getName(ns, netName);
-	//         cout << "\t" << netName << endl;
-	//     }
-	// } else {
-	//     cout << "There is no block in this design" << endl;
-	// }
-
+	if (!block) {
+		block = oaBlock::create(design);
+	}
 	if (block) {
 		oaString netName;
+		int lineCount = 5;
 		cout << "The following nets exist in this design." << endl;
 		// Print out nets but do 3 per line
 		int count = 0;
@@ -130,241 +202,498 @@ void printNets(oaDesign* design) {
 			net->getName(ns, netName);
 			cout << "\t" << netName;
 			count++;
-			if (count % 3 == 0) {
+			if (count % lineCount == 0) {
 				cout << endl;
 			}
 		}
 		// Output remaining nets if not multiple of 3
-		if (count % 3 != 0) {
+		if (count % lineCount != 0) {
 			cout << endl;
 		}
+
+		cout << "Net count: " << count << endl;
+	} else {
+		cout << "There is no block in this design" << endl;
 	}
 }
 
-// ****************************************************************************
-// main()
-//
-// This is the entry point of the program. It performs the following steps:
-//   1. Initialize the OpenAccess API
-//   2. Set up observers to handle warnings/conflicts
-//   3. Find or create the design library
-//   4. Open the specified design (library/cell/view)
-//   5. Print design information and existing nets
-//   6. Perform lab exercises (Problem 2: fanout, Problem 3: wirelength)
-//   7. Clean up by closing design and library
-//
-// The program uses exception handling (try/catch) to gracefully handle errors
-// that may occur during OpenAccess operations.
-// ****************************************************************************
-int main(int argc, char* argv[]) {
-	try {
-		// Initialize OpenAccess API - must be called before any other OA operations
-		// Parameters: major version, minor version, data model version (3 =
-		// supports incremental tech DBs) This sets up the OpenAccess runtime
-		// environment
-		oaDesignInit(oacAPIMajorRevNumber, oacAPIMinorRevNumber, 3);
-
-		// Define the library path (where the design files are stored on disk)
-		oaString libPath("./DesignLib");
-		// Define the library name (logical name in OpenAccess)
-		oaString library("DesignLib");
-		// Get the view type - oacMaskLayout means this is a physical layout view
-		// (as opposed to schematic, netlist, etc.)
-		oaViewType* viewType = oaViewType::get(oacMaskLayout);
-		// Define the cell name (the specific design we want to open)
-		oaString cell("s1196_bench");
-		// Define the view name (which view of this cell we want)
-		oaString view("layout");
-
-		// Create OpenAccess name objects - these are used to identify objects in
-		// the hierarchy oaScalarName wraps a string in OpenAccess's naming system
-		oaScalarName libName(ns, library);
-		oaScalarName cellName(ns, cell);
-		oaScalarName viewName(ns, view);
-		oaScalarName libraryName(ns, library);
-
-		// Setup observers - these handle warnings and conflicts that may occur
-		// Observers are like event handlers that get called when certain things
-		// happen The parameter (1) typically means "verbose mode" - print all
-		// messages Tech conflict observer: handles conflicts in technology database
-		// (layer definitions, etc.)
-		opnTechConflictObserver myTechConflictObserver(1);
-		// LibDefList observer: handles warnings related to library definition files
-		// (lib.defs)
-		opnLibDefListObserver myLibDefListObserver(1);
-
-		// Try to find the library - this looks in lib.defs (library definition
-		// file) lib.defs is a configuration file that tells OpenAccess where
-		// libraries are located
-		oaLib* lib = oaLib::find(libraryName);
-
-		// If library wasn't found in lib.defs, we need to handle it
-		if (!lib) {
-			// Check if the library directory actually exists on disk
-			if (oaLib::exists(libPath)) {
-				// Library exists on disk but wasn't registered in lib.defs
-				// Open it directly by specifying the path
-				lib = oaLib::open(libraryName, libPath);
-			} else {
-				// Library doesn't exist - we need to create it
-				// Check if there's a DM (Design Manager) system environment variable
-				// DM systems provide version control and collaboration features
-				char* DMSystem = getenv("DMSystem");
-				if (DMSystem) {
-					// Create library with DM system support (shared/versioned mode)
-					lib = oaLib::create(libraryName, libPath, oacSharedLibMode, DMSystem);
-				} else {
-					// Create a simple local library without DM system
-					lib = oaLib::create(libraryName, libPath);
-				}
-			}
-			// After finding or creating the library, update lib.defs so it's
-			// registered
-			if (lib) {
-				// Update lib.defs file so future runs can find this library
-				// automatically
-				updateLibDefsFile(libraryName, libPath);
-			} else {
-				// Failed to create/open library - print error and exit
-				cerr << "ERROR : Unable to create " << libPath << "/";
-				cerr << library << endl;
-				return (1);
-			}
-		}
-		// Open the design - this loads the design data into memory
-		// Parameters:
-		//   libraryName, cellName, viewName - identify which design to open
-		//   viewType - the type of view (layout, schematic, etc.)
-		//   'r' - open in READ mode (use 'w' for write mode to modify the design)
-		// Note: The cout message says 'write' but the code uses 'r' - this may be
-		// intentional
-		cout << "The design is created and opened in 'write' mode." << endl;
-
-		oaDesign* design =
-			oaDesign::open(libraryName, cellName, viewName, viewType, 'r');
-
-		// Print information about the opened design
-		// This displays the library/cell/view names we're working with
-		printDesignNames(design);
-		// Print all the nets that exist in this design
-		printNets(design);
-
-		// Get the TopBlock - this is the container for all design elements
-		// The block contains nets, instances (components), terminals (pins), etc.
-		oaBlock* block = design->getTopBlock();
-
-		// Some designs might not have a block yet (empty/new designs)
-		// If no block exists, create one so we can add elements to it
-		if (!block) {
-			block = oaBlock::create(design);
-		}
-
-		// ========================================================================
-		// EE 201A Lab 1 Problem 2: Compute Average Fanout
-		// ========================================================================
-		// Fanout = number of components connected to a net
-		// For each net, count how many instance terminals (InstTerm) and
-		// primary terminals (Term) are connected to it
-		cout << endl
-			 << "----- Firstname Lastname: Problem 2 -----" << endl;
-
-		// TODO: Compute average fanout
-		// Initialize counter for total number of nets
-		int total_net = 0;
-		// Create iterator to go through all nets in the block
+/*
+ * Print out the nets that are being filtered out
+ * Filtered nets are: VDD, VSS, blif_clk_net, blif_reset_net, tie1, tie0
+ */
+void printFilteredNets(oaDesign* design) {
+	oaBlock* block = design->getTopBlock();
+	if (!block) {
+		block = oaBlock::create(design);
+	}
+	if (block) {
+		oaString netName;
+		cout << "Nets being filtered out:" << endl;
+		int count = 0;
 		oaIter<oaNet> netIterator(block->getNets());
-		// TODO: Create a vector/array to store fanout values for each net
-
-		// Created fanout vector array to store fanout values for each net
-		vector<int> fanout_array;
-
-		// Iterate through each net in the design
 		while (oaNet* net = netIterator.getNext()) {
-			// Get the net name for filtering
 			oaString netName;
 			net->getName(ns, netName);
-
-			// Filter out power, ground, and clock nets BEFORE processing
-			// Based on design files: VDD (power), VSS (ground), blif_clk_net (clock)
-			if (netName == "VDD" || netName == "VSS" || netName == "blif_clk_net") {
-				continue; // Skip special nets
+			oaSigTypeEnum sigType = net->getSigType();
+			if (netName == "VDD" ||
+				netName == "VSS" ||
+				netName == "blif_clk_net" ||
+				netName == "blif_reset_net" ||
+				netName == "tie1" ||
+				netName == "tie0") {
+				cout << "\t" << netName << " (custom)" << endl;
+				count++;
+			} else if (sigType == oacPowerSigType ||
+					   sigType == oacGroundSigType ||
+					   sigType == oacClockSigType ||
+					   sigType == oacResetSigType ||
+					   sigType == oacTieoffSigType ||
+					   sigType == oacTieHiSigType ||
+					   sigType == oacTieLoSigType) {
+				cout << "\t" << netName << " (by sigType:" << sigType << ")" << endl;
+				count++;
 			}
-
-			total_net++;
-
-			// Initialize fanout counter for this net
-			int fanout = 0;
-
-			// For each net, iterate through:
-			//   1. InstTerms - terminals of instances (components) connected to this
-			//   net
-			//   2. Terms - primary I/O terminals (pins) connected to this net
-			// Count both to get total fanout
-			oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
-			oaIter<oaTerm> termIterator(net->getTerms());
-
-			// Count instance terminals
-			while (oaInstTerm* instTerm = instTermIterator.getNext()) {
-				// Increment fanout for each instance terminal
-				fanout++;
-			}
-
-			// Count primary terminals
-			while (oaTerm* term = termIterator.getNext()) {
-				// Increment fanout for each primary terminal
-				fanout++;
-			}
-
-			// Store fanout value for this net
-			fanout_array.push_back(fanout);
 		}
+		cout << "Filtered Net count: " << count << endl;
+	} else {
+		cout << "No filtered nets found" << endl;
+	}
+}
 
-		// Calculate average = sum of all fanouts / number of nets
-		if (fanout_array.size() > 0) {
-			int totalFanout = accumulate(fanout_array.begin(), fanout_array.end(), 0);
-			double avgFanout = (double)totalFanout / fanout_array.size();
-			cout << "Problem 2 -- Average fanout " << avgFanout << endl;
-		} else {
-			cout << "Problem 2 -- Average fanout 0.0 (no nets found)" << endl;
-		}
+/*
+ * Compute average fanout for filtered nets
+ * Filtered nets are: VDD, VSS, blif_clk_net, blif_reset_net, tie1, tie0
+ */
+vector<int> getFanout(oaDesign* design) {
+	vector<int> fanoutArray;
 
-		// ========================================================================
-		// EE 201A Lab 1 Problem 3: Compute Average Wirelength
-		// ========================================================================
-		// Wirelength = total length of wires connecting components
-		// Need to access the physical geometry of nets to measure their length
-		cout << endl
-			 << "----- Firstname Lastname: Problem 3 -----" << endl;
-
-		// TODO: To get wirelength, you need to traverse the hierarchy:
-		//   oaTerm (terminal/pin) --> oaPin (physical pin) --> oaPinFig (pin
-		//   figure/geometry) oaPinFig inherits from oaFig, which has methods to get
-		//   geometric information You'll need to iterate through nets, then through
-		//   their pin figures to measure length
-
-		// Output answers:
-		cout << "Problem 2 -- Average fanout " << "*YOUR VALUE HERE*" << endl;
-		cout << "Problem 3 -- Average wirelength " << "*YOUR VALUE HERE*" << endl;
-
-		// Clean up: Close the design to free memory and release file locks
-		// Always close objects when done to prevent resource leaks
-		design->close();
-
-		// Close the library as well
-		lib->close();
-
-	} catch (oaCompatibilityError& ex) {
-		// Handle compatibility errors - these occur when design data format
-		// doesn't match the OpenAccess version being used
-		handleFBCError(ex);
-		exit(1);
-
-	} catch (oaException& excp) {
-		// Catch any other OpenAccess exceptions and print the error message
-		// oaException is the base class for all OpenAccess errors
-		cout << "ERROR: " << excp.getMsg() << endl;
-		exit(1);
+	// Get the top block of the design
+	oaBlock* block = design->getTopBlock();
+	if (!block) {
+		block = oaBlock::create(design);
 	}
 
-	return 0;
+	// Iterate through all nets
+	int totalNets = 0;
+	oaIter<oaNet> netIterator(block->getNets());
+	while (oaNet* net = netIterator.getNext()) {
+		oaString netName;
+		net->getName(ns, netName);
+		oaSigTypeEnum sigType = net->getSigType();
+		if (netName == "VDD" ||
+			netName == "VSS" ||
+			netName == "blif_clk_net" ||
+			netName == "blif_reset_net" ||
+			netName == "tie1" ||
+			netName == "tie0") {
+			continue;
+		} else if (sigType == oacPowerSigType ||
+				   sigType == oacGroundSigType ||
+				   sigType == oacClockSigType ||
+				   sigType == oacResetSigType ||
+				   sigType == oacTieoffSigType ||
+				   sigType == oacTieHiSigType ||
+				   sigType == oacTieLoSigType) {
+			continue;
+		}
+
+		// Increment total nets count
+		totalNets++;
+
+		// Count instance terminals & primary terminals
+		int fanout = 0;
+		oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
+		while (oaInstTerm* instTerm = instTermIterator.getNext()) {
+			fanout++;
+		}
+		oaIter<oaTerm> termIterator(net->getTerms());
+		while (oaTerm* term = termIterator.getNext()) {
+			fanout++;
+		}
+
+		// Store fanout value for this net
+		fanoutArray.push_back(fanout);
+	}
+
+	return fanoutArray;
+}
+
+/*
+ * Compute the average of an array of ints
+ */
+double computeAverage(vector<int> arr) {
+	int sum = accumulate(arr.begin(), arr.end(), 0);
+	double average = (double)sum / arr.size();
+	return average;
+}
+
+/*
+ * Compute the average of an array of doubles
+ */
+double computeAverage(vector<double> arr) {
+	double sum = accumulate(arr.begin(), arr.end(), 0);
+	double average = sum / arr.size();
+	return average;
+}
+
+/*
+ * Count the number of terminals on a net
+ */
+int countTerminals(oaNet* net) {
+	int terminalCount = 0;
+	oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
+	while (oaInstTerm* instTerm = instTermIterator.getNext()) {
+		terminalCount++;
+	}
+	oaIter<oaTerm> termIterator(net->getTerms());
+	while (oaTerm* term = termIterator.getNext()) {
+		terminalCount++;
+	}
+	return terminalCount;
+}
+
+// ========================================================================
+// HPWL Computation Functions
+// ========================================================================
+
+/*
+ * Compute HPWL for all nets with exactly 2 ends (2 terminals)
+ * Returns a vector of HPWL values for each qualifying net
+ */
+vector<double> computeHPWL(oaDesign* design) {
+	vector<double> hpwlArray;
+
+	// Get the top block of the design
+	oaBlock* block = design->getTopBlock();
+	if (!block) {
+		return hpwlArray;
+	}
+
+	// Iterate through all nets
+	oaIter<oaNet> netIterator(block->getNets());
+	while (oaNet* net = netIterator.getNext()) {
+		// Filter out power, ground, and clock nets (same filtering as getFanout)
+		oaString netName;
+		net->getName(ns, netName);
+		oaSigTypeEnum sigType = net->getSigType();
+		if (netName == "VDD" ||
+			netName == "VSS" ||
+			netName == "blif_clk_net" ||
+			netName == "blif_reset_net" ||
+			netName == "tie1" ||
+			netName == "tie0") {
+			continue;
+		} else if (sigType == oacPowerSigType ||
+				   sigType == oacGroundSigType ||
+				   sigType == oacClockSigType ||
+				   sigType == oacResetSigType ||
+				   sigType == oacTieoffSigType ||
+				   sigType == oacTieHiSigType ||
+				   sigType == oacTieLoSigType) {
+			continue;
+		}
+
+		// Count terminals (instance terminals + primary terminals)
+		int terminalCount = 0;
+		oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
+		while (oaInstTerm* instTerm = instTermIterator.getNext()) {
+			terminalCount++;
+		}
+		oaIter<oaTerm> termIterator(net->getTerms());
+		while (oaTerm* term = termIterator.getNext()) {
+			terminalCount++;
+		}
+
+		// Only process nets with exactly 2 ends
+		if (terminalCount == 2) {
+			double hpwl = computeHPWLForNet(net);
+			if (hpwl >= 0) { // Valid HPWL value
+				hpwlArray.push_back(hpwl);
+			}
+		}
+	}
+
+	return hpwlArray;
+}
+
+/*
+ * Compute HPWL for a single net
+ * HPWL means Horizontal-Plus-Vertical Wirelength
+ * HPWL = (max_x - min_x) + (max_y - min_y)
+ * This considers all shapes across all metal layers
+ */
+double computeHPWLForNet(oaNet* net) {
+	oaBox bbox;
+	bool bboxInitialized = false;
+
+	// Iterate through all shapes on the net (across all metal layers)
+	// This includes shapes on all routing layers
+	oaIter<oaShape> shapeIterator(net->getShapes());
+	while (oaShape* shape = shapeIterator.getNext()) {
+		oaBox shapeBox;
+		shape->getBBox(shapeBox);
+
+		if (!bboxInitialized) {
+			bbox = shapeBox;
+			bboxInitialized = true;
+		} else {
+			// Expand bounding box to include this shape
+			oaPoint lowerLeft = bbox.lowerLeft();
+			oaPoint upperRight = bbox.upperRight();
+			oaPoint shapeLowerLeft = shapeBox.lowerLeft();
+			oaPoint shapeUpperRight = shapeBox.upperRight();
+
+			oaInt4 minX = std::min(lowerLeft.x(), shapeLowerLeft.x());
+			oaInt4 minY = std::min(lowerLeft.y(), shapeLowerLeft.y());
+			oaInt4 maxX = std::max(upperRight.x(), shapeUpperRight.x());
+			oaInt4 maxY = std::max(upperRight.y(), shapeUpperRight.y());
+
+			bbox.set(minX, minY, maxX, maxY);
+		}
+	}
+
+	// If no shapes found, return -1 to indicate invalid
+	if (!bboxInitialized) {
+		return -1;
+	}
+
+	// Calculate HPWL = (max_x - min_x) + (max_y - min_y)
+	oaPoint lowerLeft = bbox.lowerLeft();
+	oaPoint upperRight = bbox.upperRight();
+	oaInt4 width = upperRight.x() - lowerLeft.x();
+	oaInt4 height = upperRight.y() - lowerLeft.y();
+
+	return (double)(width + height);
+}
+
+// ========================================================================
+// Terminal Plotting Implementation (inlined from TerminalPlotter.h)
+// ========================================================================
+
+/**
+ * HistogramConfig - Configuration structure for customizing histogram plots
+ */
+struct HistogramConfig {
+    string title;                    // Main title of the histogram
+    string xAxisLabel;               // Label for X-axis (e.g., "Fanout Value", "HPWL Range")
+    string yAxisLabel;               // Label for Y-axis (e.g., "Number of Nets")
+    string description;              // Description/subtitle at the bottom
+    
+    // Statistics labels
+    string totalLabel;               // Label for total count (e.g., "Total Nets", "Total Nets (2 ends)")
+    string averageLabel;             // Label for average (e.g., "Average Fanout", "Average HPWL")
+    string minLabel;                 // Label for minimum value (empty string to hide)
+    string maxLabel;                 // Label for maximum value (empty string to hide)
+    
+    // Histogram type configuration
+    bool useBins;                    // true for continuous data (bins), false for discrete values
+    int numBins;                     // Number of bins (only used if useBins == true)
+    int precision;                   // Decimal precision for displaying numbers
+    
+    // Display configuration
+    int maxBarWidth;                 // Maximum width of bars in characters
+    int labelWidth;                  // Width reserved for labels
+    
+    // Default constructor with sensible defaults
+    HistogramConfig() :
+        title("Distribution Histogram"),
+        xAxisLabel("Value"),
+        yAxisLabel("Count"),
+        description("Distribution of Values"),
+        totalLabel("Total"),
+        averageLabel("Average"),
+        minLabel(""),
+        maxLabel(""),
+        useBins(false),
+        numBins(20),
+        precision(2),
+        maxBarWidth(60),
+        labelWidth(28)
+    {}
+};
+
+/**
+ * Normalize a value to fit within the display range
+ */
+static int normalizeHistogramValue(int value, int maxValue, int maxWidth) {
+    if (maxValue == 0) return 0;
+    return (int)((double)value / maxValue * maxWidth);
+}
+
+/**
+ * Format a number with appropriate precision
+ */
+static string formatHistogramNumber(double num, int precision = 2) {
+    ostringstream oss;
+    oss << fixed << setprecision(precision) << num;
+    return oss.str();
+}
+
+/**
+ * Create a horizontal bar using ASCII characters
+ */
+static string createHistogramBar(int width) {
+    if (width <= 0) return "";
+    return string(width, '#');
+}
+
+/**
+ * Format a label string, truncating if necessary
+ */
+static string formatHistogramLabel(const string& label, int maxWidth) {
+    if (label.length() <= maxWidth) return label;
+    return label.substr(0, maxWidth - 3) + "...";
+}
+
+/**
+ * Generic histogram plotting function
+ * Works with any numeric type (int, double, float, etc.)
+ */
+template<typename T>
+static void plotHistogramGeneric(const vector<T>& data, const HistogramConfig& config) {
+    if (data.empty()) {
+        cerr << "ERROR: Data array is empty, cannot create histogram" << endl;
+        return;
+    }
+
+    map<int, int> histogram; // bin/value index -> count
+    int maxCount = 0;
+    double minVal = 0, maxVal = 0;
+    double sum = 0;
+
+    if (config.useBins) {
+        // Continuous data: use bins
+        // Find min and max values
+        minVal = (double)data[0];
+        maxVal = (double)data[0];
+        for (size_t i = 1; i < data.size(); i++) {
+            double val = (double)data[i];
+            if (val < minVal) minVal = val;
+            if (val > maxVal) maxVal = val;
+        }
+
+        // Create bins
+        double binWidth = (maxVal - minVal) / config.numBins;
+        if (binWidth == 0) binWidth = 1; // Avoid division by zero
+
+        // Build histogram
+        for (size_t i = 0; i < data.size(); i++) {
+            double val = (double)data[i];
+            int binIndex = (int)((val - minVal) / binWidth);
+            if (binIndex >= config.numBins)
+                binIndex = config.numBins - 1; // Put max value in last bin
+            histogram[binIndex]++;
+            if (histogram[binIndex] > maxCount) {
+                maxCount = histogram[binIndex];
+            }
+            sum += val;
+        }
+    } else {
+        // Discrete data: count each value
+        int minValInt = (int)data[0];
+        int maxValInt = (int)data[0];
+        
+        for (size_t i = 0; i < data.size(); i++) {
+            int val = (int)data[i];
+            histogram[val]++;
+            if (histogram[val] > maxCount) {
+                maxCount = histogram[val];
+            }
+            if (val < minValInt) minValInt = val;
+            if (val > maxValInt) maxValInt = val;
+            sum += (double)data[i];
+        }
+        minVal = minValInt;
+        maxVal = maxValInt;
+    }
+
+    // Calculate average
+    double avg = data.size() > 0 ? sum / data.size() : 0;
+
+    // Print header and statistics
+    cout << "\n";
+    cout << "========================================================================" << endl;
+    cout << "                    " << config.title << endl;
+    cout << "------------------------------------------------------------------------" << endl;
+    cout << config.totalLabel << ": " << data.size() << endl;
+    cout << config.averageLabel << ": " << formatHistogramNumber(avg, config.precision) << endl;
+    if (!config.minLabel.empty()) {
+        cout << config.minLabel << ": " << formatHistogramNumber(minVal, config.precision) << endl;
+    }
+    if (!config.maxLabel.empty()) {
+        cout << config.maxLabel << ": " << formatHistogramNumber(maxVal, config.precision) << endl;
+    }
+    cout << "------------------------------------------------------------------------" << endl;
+    cout << setw(config.labelWidth) << left << config.xAxisLabel << " | " << config.yAxisLabel << endl;
+    cout << string(config.labelWidth, '-') << "-|-" << string(config.maxBarWidth, '-') << endl;
+
+    // Print histogram bars
+    if (config.useBins) {
+        // Print bins
+        double binWidth = (maxVal - minVal) / config.numBins;
+        if (binWidth == 0) binWidth = 1;
+        
+        for (int i = 0; i < config.numBins; i++) {
+            int count = (histogram.find(i) != histogram.end()) ? histogram[i] : 0;
+            int barWidth = normalizeHistogramValue(count, maxCount, config.maxBarWidth);
+            string bar = createHistogramBar(barWidth);
+            
+            double binStart = minVal + i * binWidth;
+            double binEnd = minVal + (i + 1) * binWidth;
+            string rangeLabel = formatHistogramNumber(binStart, config.precision) + "-" + formatHistogramNumber(binEnd, config.precision);
+            rangeLabel = formatHistogramLabel(rangeLabel, config.labelWidth);
+            
+            cout << setw(config.labelWidth) << left << rangeLabel << " | " 
+                 << setw(4) << right << count << " " << bar << endl;
+        }
+    } else {
+        // Print discrete values
+        int minValInt = (int)minVal;
+        int maxValInt = (int)maxVal;
+        
+        for (int i = minValInt; i <= maxValInt; i++) {
+            int count = (histogram.find(i) != histogram.end()) ? histogram[i] : 0;
+            int barWidth = normalizeHistogramValue(count, maxCount, config.maxBarWidth);
+            string bar = createHistogramBar(barWidth);
+            
+            cout << setw(config.labelWidth) << right << i << " | " 
+                 << setw(4) << right << count << " " << bar << endl;
+        }
+    }
+
+    cout << "------------------------------------------------------------------------" << endl;
+    cout << config.description << endl;
+    cout << "========================================================================" << endl;
+    cout << "\n";
+}
+
+/*
+ * Plot the fanout histogram to the terminal
+ */
+void plotFanoutHistogramTerminal(vector<int> fanoutArray) {
+	HistogramConfig fanoutConfig;
+	fanoutConfig.title = "Fanout Distribution Histogram";
+	fanoutConfig.xAxisLabel = "Fanout Value";
+	fanoutConfig.yAxisLabel = "Number of Nets";
+	fanoutConfig.description = "Distribution of Fanout Values Across All Nets";
+	fanoutConfig.totalLabel = "Total Nets";
+	fanoutConfig.averageLabel = "Average Fanout";
+	fanoutConfig.useBins = false;
+	plotHistogramGeneric(fanoutArray, fanoutConfig);
+}
+
+/*
+ * Plot the HPWL histogram to the terminal
+ */
+void plotHPWLHistogramTerminal(vector<double> hpwlArray) {
+	HistogramConfig hpwlConfig;
+	hpwlConfig.title = "HPWL Distribution Histogram";
+	hpwlConfig.xAxisLabel = "HPWL Range";
+	hpwlConfig.yAxisLabel = "Number of Nets";
+	hpwlConfig.description = "Distribution of HPWL Values for Nets with 2 Ends";
+	hpwlConfig.totalLabel = "Total Nets (2 ends)";
+	hpwlConfig.averageLabel = "Average HPWL";
+	hpwlConfig.useBins = true; // HPWL is continuous data, so use bins to show ranges
+	hpwlConfig.numBins = 20;   // Use 20 bins (same as HTML plot)
+	plotHistogramGeneric(hpwlArray, hpwlConfig);
 }

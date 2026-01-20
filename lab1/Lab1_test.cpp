@@ -49,7 +49,7 @@ int main() {
 	cout << "Testing for Lab1" << endl;
 	try {
 		// Problem 1: setup OpenAccess
-		cout << "Problem 1: setup OpenAccess" << endl;
+		cout << "----- Ethan Owen: Problem 1 -----" << endl;
 		setupOpenAccess();
 		oaDesign* design = openDesign();
 		printNets(design);
@@ -60,10 +60,10 @@ int main() {
 		cout << endl;
 
 		// Problem 2: Compute Average Fanout
-		cout << "Problem 2: Compute Average Fanout" << endl;
+		cout << "----- Ethan Owen: Problem 2 -----" << endl;
 		vector<int> fanoutArray = getFanout(design);
 		double averageFanout = computeAverage(fanoutArray);
-		cout << "The average fanout is " << averageFanout << endl;
+		cout << "Problem 2 -- Average fanout " << averageFanout << endl;
 		cout << endl;
 
 		// Generate fanout histogram plot
@@ -77,10 +77,10 @@ int main() {
 		cout << endl;
 
 		// Problem 3: Compute HPWL for nets with 2 ends
-		cout << "Problem 3: Compute HPWL for nets with 2 ends" << endl;
+		cout << "----- Ethan Owen: Problem 3 -----" << endl;
 		vector<double> hpwlArray = computeHPWL(design);
 		double averageHPWL = computeAverage(hpwlArray);
-		cout << "The average HPWL is " << averageHPWL << endl;
+		cout << "Problem 3 -- Average wirelength " << averageHPWL << endl;
 		cout << "Total nets with 2 ends: " << hpwlArray.size() << endl;
 		cout << endl;
 
@@ -93,6 +93,10 @@ int main() {
 		} else {
 			cout << "\nCannot generate HPWL histogram, no nets with 2 ends found!" << endl;
 		}
+	} catch (oaCompatibilityError& ex) {
+		handleFBCError(ex);
+		exit(1);
+
 	} catch (oaException& excp) {
 		cout << "ERROR: " << excp.getMsg() << endl;
 		exit(1);
@@ -191,6 +195,7 @@ void printNets(oaDesign* design) {
 	}
 	if (block) {
 		oaString netName;
+		int lineCount = 5;
 		cout << "The following nets exist in this design." << endl;
 		// Print out nets but do 3 per line
 		int count = 0;
@@ -199,12 +204,12 @@ void printNets(oaDesign* design) {
 			net->getName(ns, netName);
 			cout << "\t" << netName;
 			count++;
-			if (count % 3 == 0) {
+			if (count % lineCount == 0) {
 				cout << endl;
 			}
 		}
 		// Output remaining nets if not multiple of 3
-		if (count % 3 != 0) {
+		if (count % lineCount != 0) {
 			cout << endl;
 		}
 
@@ -369,6 +374,27 @@ vector<double> computeHPWL(oaDesign* design) {
 	// Iterate through all nets
 	oaIter<oaNet> netIterator(block->getNets());
 	while (oaNet* net = netIterator.getNext()) {
+		// Filter out power, ground, and clock nets (same filtering as getFanout)
+		oaString netName;
+		net->getName(ns, netName);
+		oaSigTypeEnum sigType = net->getSigType();
+		if (netName == "VDD" ||
+			netName == "VSS" ||
+			netName == "blif_clk_net" ||
+			netName == "blif_reset_net" ||
+			netName == "tie1" ||
+			netName == "tie0") {
+			continue;
+		} else if (sigType == oacPowerSigType ||
+				   sigType == oacGroundSigType ||
+				   sigType == oacClockSigType ||
+				   sigType == oacResetSigType ||
+				   sigType == oacTieoffSigType ||
+				   sigType == oacTieHiSigType ||
+				   sigType == oacTieLoSigType) {
+			continue;
+		}
+
 		// Count terminals (instance terminals + primary terminals)
 		int terminalCount = 0;
 		oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
@@ -754,8 +780,8 @@ void plotHPWLHistogram(vector<double> hpwlArray, const string& filename) {
 }
 
 /*
-* Plot the fanout histogram to the terminal
-*/
+ * Plot the fanout histogram to the terminal
+ */
 void plotFanoutHistogramTerminal(vector<int> fanoutArray) {
 	HistogramConfig fanoutConfig;
 	fanoutConfig.title = "Fanout Distribution Histogram";
@@ -764,12 +790,13 @@ void plotFanoutHistogramTerminal(vector<int> fanoutArray) {
 	fanoutConfig.description = "Distribution of Fanout Values Across All Nets";
 	fanoutConfig.totalLabel = "Total Nets";
 	fanoutConfig.averageLabel = "Average Fanout";
+	fanoutConfig.useBins = false;
 	TerminalPlotter::plotHistogram(fanoutArray, fanoutConfig);
 }
 
 /*
-* Plot the HPWL histogram to the terminal
-*/
+ * Plot the HPWL histogram to the terminal
+ */
 void plotHPWLHistogramTerminal(vector<double> hpwlArray) {
 	HistogramConfig hpwlConfig;
 	hpwlConfig.title = "HPWL Distribution Histogram";
@@ -778,5 +805,7 @@ void plotHPWLHistogramTerminal(vector<double> hpwlArray) {
 	hpwlConfig.description = "Distribution of HPWL Values for Nets with 2 Ends";
 	hpwlConfig.totalLabel = "Total Nets (2 ends)";
 	hpwlConfig.averageLabel = "Average HPWL";
+	hpwlConfig.useBins = true; // HPWL is continuous data, so use bins to show ranges
+	hpwlConfig.numBins = 20;   // Use 20 bins (same as HTML plot)
 	TerminalPlotter::plotHistogram(hpwlArray, hpwlConfig);
 }

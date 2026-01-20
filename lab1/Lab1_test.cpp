@@ -32,6 +32,7 @@ void printDesignNames(oaDesign* design);
 void printNets(oaDesign* design);
 void printFilteredNets(oaDesign* design);
 vector<int> getFanout(oaDesign* design);
+void testFanoutCalculation(oaDesign* design, int numNetsToTest = 5);
 double computeAverage(vector<int> arr);
 double computeAverage(vector<double> arr);
 vector<double> computeHPWL(oaDesign* design);
@@ -60,6 +61,12 @@ int main() {
 
 		// Problem 2: Compute Average Fanout
 		cout << "----- Ethan Owen: Problem 2 -----" << endl;
+		
+		// Test fanout calculation with detailed output
+		cout << "\n--- Testing Fanout Calculation (first 5 nets) ---" << endl;
+		testFanoutCalculation(design, 5);
+		cout << endl;
+		
 		vector<int> fanoutArray = getFanout(design);
 		double averageFanout = computeAverage(fanoutArray);
 		cout << "Problem 2 -- Average fanout " << averageFanout << endl;
@@ -268,6 +275,9 @@ void printFilteredNets(oaDesign* design) {
 /*
  * Compute average fanout for filtered nets
  * Filtered nets are: VDD, VSS, blif_clk_net, blif_reset_net, tie1, tie0
+ * New logic to count fanout for a net
+ * Counts all instance terminals as loads
+ * Counts primary I/O terminals as loads, only counting inputs
  */
 vector<int> getFanout(oaDesign* design) {
 	vector<int> fanoutArray;
@@ -305,15 +315,27 @@ vector<int> getFanout(oaDesign* design) {
 		// Increment total nets count
 		totalNets++;
 
-		// Count instance terminals & primary terminals
+		// Count fanout for a net
 		int fanout = 0;
+		
+		// Count all instance terminals as loads (inputs)
 		oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
 		while (oaInstTerm* instTerm = instTermIterator.getNext()) {
 			fanout++;
 		}
+		
+		// For primary I/O terminals (terms), only count INPUTs as loads
 		oaIter<oaTerm> termIterator(net->getTerms());
 		while (oaTerm* term = termIterator.getNext()) {
-			fanout++;
+			// Check if this is a scalar term
+			if (term->getType() == oacScalarTermType) {
+				oaScalarTerm* scalarTerm = (oaScalarTerm*)term;
+				oaTermType termType = scalarTerm->getTermType();
+				// Only count primary inputs
+				if (termType == oacInputTermType) {
+					fanout++;
+				}
+			}
 		}
 
 		// Store fanout value for this net
@@ -321,6 +343,91 @@ vector<int> getFanout(oaDesign* design) {
 	}
 
 	return fanoutArray;
+}
+
+/*
+ * Test fanout calculation with detailed output for debugging
+ * Prints information about OUTPUT terminals vs total terminals for sample nets
+ */
+void testFanoutCalculation(oaDesign* design, int numNetsToTest) {
+	oaBlock* block = design->getTopBlock();
+	if (!block) {
+		block = oaBlock::create(design);
+	}
+	if (!block) {
+		cout << "No block found for testing" << endl;
+		return;
+	}
+
+	int netsTested = 0;
+	oaIter<oaNet> netIterator(block->getNets());
+	while (netsTested < numNetsToTest) {
+		oaNet* net = netIterator.getNext();
+		if (!net) break;
+		oaString netName;
+		net->getName(ns, netName);
+		oaSigTypeEnum sigType = net->getSigType();
+		
+		// Skip filtered nets
+		if (netName == "VDD" ||
+			netName == "VSS" ||
+			netName == "blif_clk_net" ||
+			netName == "blif_reset_net" ||
+			netName == "tie1" ||
+			netName == "tie0") {
+			continue;
+		} else if (sigType == oacPowerSigType ||
+				   sigType == oacGroundSigType ||
+				   sigType == oacClockSigType ||
+				   sigType == oacResetSigType ||
+				   sigType == oacTieoffSigType ||
+				   sigType == oacTieHiSigType ||
+				   sigType == oacTieLoSigType) {
+			continue;
+		}
+
+		netsTested++;
+		
+		// Count terminals using the same logic as getFanout()
+		int totalInstTerms = 0;
+		int totalTerms = 0;
+		int loadTerms = 0;
+		
+		// Count all instance terminals (these are loads in a standard cell design)
+		oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
+		while (oaInstTerm* instTerm = instTermIterator.getNext()) {
+			totalInstTerms++;
+			loadTerms++; // All instTerms are counted as loads
+		}
+		
+		// Count primary I/O terminals - only inputs are loads
+		int primaryInputs = 0;
+		int primaryOutputs = 0;
+		oaIter<oaTerm> termIterator(net->getTerms());
+		while (oaTerm* term = termIterator.getNext()) {
+			totalTerms++;
+			if (term->getType() == oacScalarTermType) {
+				oaScalarTerm* scalarTerm = (oaScalarTerm*)term;
+				oaTermType termType = scalarTerm->getTermType();
+				if (termType == oacInputTermType) {
+					primaryInputs++;
+					loadTerms++; // Primary inputs are loads
+				} else if (termType == oacOutputTermType) {
+					primaryOutputs++;
+				}
+			}
+		}
+		
+		int totalTerminals = totalInstTerms + totalTerms;
+		
+		cout << "Net: " << netName << endl;
+		cout << "  Total terminals: " << totalTerminals 
+			 << " (instTerms: " << totalInstTerms << ", primary I/O: " << totalTerms << ")" << endl;
+		cout << "  Primary Inputs: " << primaryInputs << ", Primary Outputs: " << primaryOutputs << endl;
+		cout << "  Fanout (loads): " << loadTerms 
+			 << " = " << totalInstTerms << " instTerms + " << primaryInputs << " primary inputs" << endl;
+		cout << endl;
+	}
 }
 
 /*
@@ -339,22 +446,6 @@ double computeAverage(vector<double> arr) {
 	double sum = accumulate(arr.begin(), arr.end(), 0);
 	double average = sum / arr.size();
 	return average;
-}
-
-/*
- * Count the number of terminals on a net
- */
-int countTerminals(oaNet* net) {
-	int terminalCount = 0;
-	oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
-	while (oaInstTerm* instTerm = instTermIterator.getNext()) {
-		terminalCount++;
-	}
-	oaIter<oaTerm> termIterator(net->getTerms());
-	while (oaTerm* term = termIterator.getNext()) {
-		terminalCount++;
-	}
-	return terminalCount;
 }
 
 // ========================================================================

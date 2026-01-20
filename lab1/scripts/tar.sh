@@ -60,16 +60,28 @@ else
     echo "WARNING: Lab1 executable not found! Make sure to compile it first."
 fi
 
-# Copy PDF from submissions directory (assumed to be here)
+# Copy PDF - check multiple locations
+PDF_FOUND=false
 if [ -f "Owen-Ethan_905452983_palatics_Lab1.pdf" ]; then
     echo "Copying PDF file from submissions directory..."
     cp "Owen-Ethan_905452983_palatics_Lab1.pdf" "$DIR_NAME/"
+    PDF_FOUND=true
+elif [ -f "$LAB1_DIR/documentation/Owen-Ethan_905452983_palatics_Lab1.pdf" ]; then
+    echo "Copying PDF file from documentation directory..."
+    cp "$LAB1_DIR/documentation/Owen-Ethan_905452983_palatics_Lab1.pdf" "$DIR_NAME/"
+    PDF_FOUND=true
 elif [ -f "$LAB1_DIR/Owen-Ethan_905452983_palatics_Lab1.pdf" ]; then
     echo "Copying PDF file from Lab1 directory..."
     cp "$LAB1_DIR/Owen-Ethan_905452983_palatics_Lab1.pdf" "$DIR_NAME/"
-else
+    PDF_FOUND=true
+fi
+
+if [ "$PDF_FOUND" = false ]; then
     echo "WARNING: PDF file not found! You need to create Owen-Ethan_905452983_palatics_Lab1.pdf"
-    echo "  Place it in the $SUBMISSIONS_DIR directory before running this script."
+    echo "  Place it in one of these locations:"
+    echo "    - $SUBMISSIONS_DIR/"
+    echo "    - $LAB1_DIR/documentation/"
+    echo "    - $LAB1_DIR/"
 fi
 
 # Set permissions on all files

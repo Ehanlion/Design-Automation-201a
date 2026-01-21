@@ -1,6 +1,6 @@
 // Author: Ethan Owen
 // UID: 905452983
-// UCLA EE 201A Lab 1 Test File
+// UCLA EE 201A Lab 1
 
 #include "oaDesignDB.h"
 #include <algorithm>
@@ -18,6 +18,12 @@
 using namespace std;
 using namespace oa;
 static oaNativeNS ns;
+
+// Design configuration constants
+const string LIB_PATH_NAME = "./DesignLib";
+const string LIBRARY_NAME = "DesignLib";
+const string CELL_NAME = "s1196_bench";
+const string VIEW_NAME = "layout";
 
 // Function prototypes
 void setupOpenAccess();
@@ -78,31 +84,50 @@ int main() {
  */
 void setupOpenAccess() {
 	oaDesignInit(oacAPIMajorRevNumber, oacAPIMinorRevNumber, 3);
-	oaString libPath("./DesignLib");
-	oaString library("DesignLib");
-	oaViewType* viewType = oaViewType::get(oacMaskLayout);
-	oaString cell("s1196_bench");
-	oaString view("layout");
+	
+	// First we need to get the strings here
+	string libPathName = LIB_PATH_NAME;
+	string libraryName = LIBRARY_NAME;
+	string cellName = CELL_NAME;
+	string viewName = VIEW_NAME;
+	
+	// Then we need to convert the strings to const char *
+	const char* libPathNameC = libPathName.c_str();
+	const char* libraryNameC = libraryName.c_str();
+	const char* cellNameC = cellName.c_str();
+	const char* viewNameC = viewName.c_str();
+	
+	// Then we need to create the oaString objects
+	oaString libPath(libPathNameC);
+	oaString library(libraryNameC);
+	oaString cell(cellNameC);
+	oaString view(viewNameC);
+	
+	// Then we need to create the oaScalarName objects
 	oaScalarName libName(ns, library);
-	oaScalarName cellName(ns, cell);
-	oaScalarName viewName(ns, view);
-	oaScalarName libraryName(ns, library);
+	oaScalarName cellNameScalar(ns, cell);
+	oaScalarName viewNameScalar(ns, view);
+	oaScalarName libraryNameScalar(ns, library);
+	
+	// Then we need the view type
+	oaViewType* viewType = oaViewType::get(oacMaskLayout);
+	
 	opnTechConflictObserver myTechConflictObserver(1);
 	opnLibDefListObserver myLibDefListObserver(1);
-	oaLib* lib = oaLib::find(libraryName);
+	oaLib* lib = oaLib::find(libraryNameScalar);
 	if (!lib) {
 		if (oaLib::exists(libPath)) {
-			lib = oaLib::open(libraryName, libPath);
+			lib = oaLib::open(libraryNameScalar, libPath);
 		} else {
 			char* DMSystem = getenv("DMSystem");
 			if (DMSystem) {
-				lib = oaLib::create(libraryName, libPath, oacSharedLibMode, DMSystem);
+				lib = oaLib::create(libraryNameScalar, libPath, oacSharedLibMode, DMSystem);
 			} else {
-				lib = oaLib::create(libraryName, libPath);
+				lib = oaLib::create(libraryNameScalar, libPath);
 			}
 		}
 		if (lib) {
-			updateLibDefsFile(libraryName, libPath);
+			updateLibDefsFile(libraryNameScalar, libPath);
 		}
 	}
 }
@@ -112,10 +137,10 @@ void setupOpenAccess() {
  */
 oaDesign* openDesign() {
 	// First we need to get the strings here
-	string libPathName = "./DesignLib";
-	string libraryName = "DesignLib";
-	string cellName = "s1196_bench";
-	string viewName = "layout";
+	string libPathName = LIB_PATH_NAME;
+	string libraryName = LIBRARY_NAME;
+	string cellName = CELL_NAME;
+	string viewName = VIEW_NAME;
 
 	// Then we need to convert the strings to const char *
 	const char* libPathNameC = libPathName.c_str();

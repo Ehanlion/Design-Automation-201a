@@ -40,5 +40,14 @@ cp "$TAR_FILE" "$SUBMIT_PATH"
 # Set permissions on copied file in submission directory
 chmod go+rx "$SUBMIT_PATH/$TAR_FILE"
 
+echo ""
+echo "Verifying submission (file details):"
+if command -v ll >/dev/null 2>&1; then
+    ll "$SUBMIT_PATH$TAR_FILE"
+else
+    ls -l "$SUBMIT_PATH$TAR_FILE"
+fi
+echo ""
+
 echo "Submission complete!"
 echo "Submitted file: $SUBMIT_PATH$TAR_FILE"

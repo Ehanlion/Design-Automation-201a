@@ -35,8 +35,9 @@ vector<int> getFanout(oaDesign* design);
 void testFanoutCalculation(oaDesign* design, int numNetsToTest = 5);
 double computeAverage(vector<int> arr);
 double computeAverage(vector<double> arr);
-vector<double> computeHPWL(oaDesign* design);
+pair<vector<double>, vector<double> > computeHPWL(oaDesign* design);
 double computeHPWLForNet(oaNet* net);
+double computeHPWLForNetAlt(oaNet* net);
 void plotFanoutHistogram(vector<int> fanoutArray, const string& filename);
 void plotHPWLHistogram(vector<double> hpwlArray, const string& filename);
 void plotFanoutHistogramTerminal(vector<int> fanoutArray);
@@ -61,12 +62,12 @@ int main() {
 
 		// Problem 2: Compute Average Fanout
 		cout << "----- Ethan Owen: Problem 2 -----" << endl;
-		
+
 		// Test fanout calculation with detailed output
 		cout << "\n--- Testing Fanout Calculation (first 5 nets) ---" << endl;
 		testFanoutCalculation(design, 5);
 		cout << endl;
-		
+
 		vector<int> fanoutArray = getFanout(design);
 		double averageFanout = computeAverage(fanoutArray);
 		cout << "Problem 2 -- Average fanout " << averageFanout << endl;
@@ -84,20 +85,37 @@ int main() {
 
 		// Problem 3: Compute HPWL for nets with 2 ends
 		cout << "----- Ethan Owen: Problem 3 -----" << endl;
-		vector<double> hpwlArray = computeHPWL(design);
+		pair<vector<double>, vector<double> > hpwlResults = computeHPWL(design);
+		vector<double> hpwlArray = hpwlResults.first;
+		vector<double> hpwlArrayAlt = hpwlResults.second;
+		
 		double averageHPWL = computeAverage(hpwlArray);
-		cout << "Problem 3 -- Average wirelength " << averageHPWL << endl;
+		cout << "Problem 3 -- Average wirelength (Shape-based) " << averageHPWL << endl;
 		cout << "Total nets with 2 ends: " << hpwlArray.size() << endl;
+		
+		double averageHPWLAlt = computeAverage(hpwlArrayAlt);
+		cout << "Problem 3 -- Average wirelength (Pin-based) " << averageHPWLAlt << endl;
+		cout << "Total nets with 2 ends (Alt): " << hpwlArrayAlt.size() << endl;
 		cout << endl;
 
-		// Generate HPWL histogram plot
+		// Generate HPWL histogram plots for both approaches
 		if (!hpwlArray.empty()) {
 			plotHPWLHistogram(hpwlArray, "plotting/hpwl_histogram.html");
-			cout << "HPWL histogram saved to plotting/hpwl_histogram.html" << endl;
+			cout << "HPWL histogram (Shape-based) saved to plotting/hpwl_histogram.html" << endl;
 			// Also plot to terminal
 			plotHPWLHistogramTerminal(hpwlArray);
 		} else {
 			cout << "\nCannot generate HPWL histogram, no nets with 2 ends found!" << endl;
+		}
+		
+		if (!hpwlArrayAlt.empty()) {
+			plotHPWLHistogram(hpwlArrayAlt, "plotting/hpwl_histogram_alt.html");
+			cout << "HPWL histogram (Pin-based) saved to plotting/hpwl_histogram_alt.html" << endl;
+			// Also plot to terminal
+			cout << "\n--- Alternative Pin-based Approach ---" << endl;
+			plotHPWLHistogramTerminal(hpwlArrayAlt);
+		} else {
+			cout << "\nCannot generate alternative HPWL histogram, no nets with 2 ends found!" << endl;
 		}
 		cout << endl;
 	} catch (oaCompatibilityError& ex) {
@@ -317,13 +335,13 @@ vector<int> getFanout(oaDesign* design) {
 
 		// Count fanout for a net
 		int fanout = 0;
-		
+
 		// Count all instance terminals as loads (inputs)
 		oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
 		while (oaInstTerm* instTerm = instTermIterator.getNext()) {
 			fanout++;
 		}
-		
+
 		// For primary I/O terminals (terms), only count INPUTs as loads
 		oaIter<oaTerm> termIterator(net->getTerms());
 		while (oaTerm* term = termIterator.getNext()) {
@@ -363,11 +381,12 @@ void testFanoutCalculation(oaDesign* design, int numNetsToTest) {
 	oaIter<oaNet> netIterator(block->getNets());
 	while (netsTested < numNetsToTest) {
 		oaNet* net = netIterator.getNext();
-		if (!net) break;
+		if (!net)
+			break;
 		oaString netName;
 		net->getName(ns, netName);
 		oaSigTypeEnum sigType = net->getSigType();
-		
+
 		// Skip filtered nets
 		if (netName == "VDD" ||
 			netName == "VSS" ||
@@ -387,19 +406,19 @@ void testFanoutCalculation(oaDesign* design, int numNetsToTest) {
 		}
 
 		netsTested++;
-		
+
 		// Count terminals using the same logic as getFanout()
 		int totalInstTerms = 0;
 		int totalTerms = 0;
 		int loadTerms = 0;
-		
+
 		// Count all instance terminals (these are loads in a standard cell design)
 		oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
 		while (oaInstTerm* instTerm = instTermIterator.getNext()) {
 			totalInstTerms++;
 			loadTerms++; // All instTerms are counted as loads
 		}
-		
+
 		// Count primary I/O terminals - only inputs are loads
 		int primaryInputs = 0;
 		int primaryOutputs = 0;
@@ -417,14 +436,14 @@ void testFanoutCalculation(oaDesign* design, int numNetsToTest) {
 				}
 			}
 		}
-		
+
 		int totalTerminals = totalInstTerms + totalTerms;
-		
+
 		cout << "Net: " << netName << endl;
-		cout << "  Total terminals: " << totalTerminals 
+		cout << "  Total terminals: " << totalTerminals
 			 << " (instTerms: " << totalInstTerms << ", primary I/O: " << totalTerms << ")" << endl;
 		cout << "  Primary Inputs: " << primaryInputs << ", Primary Outputs: " << primaryOutputs << endl;
-		cout << "  Fanout (loads): " << loadTerms 
+		cout << "  Fanout (loads): " << loadTerms
 			 << " = " << totalInstTerms << " instTerms + " << primaryInputs << " primary inputs" << endl;
 		cout << endl;
 	}
@@ -454,15 +473,16 @@ double computeAverage(vector<double> arr) {
 
 /*
  * Compute HPWL for all nets with exactly 2 ends (2 terminals)
- * Returns a vector of HPWL values for each qualifying net
+ * Returns a pair of vectors: first is shape-based approach, second is pin-based approach
  */
-vector<double> computeHPWL(oaDesign* design) {
+pair<vector<double>, vector<double> > computeHPWL(oaDesign* design) {
 	vector<double> hpwlArray;
+	vector<double> hpwlArrayAlt;
 
 	// Get the top block of the design
 	oaBlock* block = design->getTopBlock();
 	if (!block) {
-		return hpwlArray;
+		return make_pair(hpwlArray, hpwlArrayAlt);
 	}
 
 	// Iterate through all nets
@@ -505,11 +525,21 @@ vector<double> computeHPWL(oaDesign* design) {
 			double hpwl = computeHPWLForNet(net);
 			if (hpwl >= 0) { // Valid HPWL value
 				hpwlArray.push_back(hpwl);
+			} else {
+				cout << "Invalid HPWL value for net: " + netName << endl;
+			}
+			
+			// Also compute using alternative pin-based approach
+			double hpwlAlt = computeHPWLForNetAlt(net);
+			if (hpwlAlt >= 0) { // Valid HPWL value
+				hpwlArrayAlt.push_back(hpwlAlt);
+			} else {
+				cout << "Invalid HPWL value for net: " + netName << endl;
 			}
 		}
 	}
 
-	return hpwlArray;
+	return make_pair(hpwlArray, hpwlArrayAlt);
 }
 
 /*
@@ -549,6 +579,99 @@ double computeHPWLForNet(oaNet* net) {
 	}
 
 	// If no shapes found, return -1 to indicate invalid
+	if (!bboxInitialized) {
+		return -1;
+	}
+
+	// Calculate HPWL = (max_x - min_x) + (max_y - min_y)
+	oaPoint lowerLeft = bbox.lowerLeft();
+	oaPoint upperRight = bbox.upperRight();
+	oaInt4 width = upperRight.x() - lowerLeft.x();
+	oaInt4 height = upperRight.y() - lowerLeft.y();
+
+	return (double)(width + height);
+}
+
+/*
+ * Compute HPWL for a single net using alternative pin-based approach
+ * Following TA's comment: oaTerm --> oaPin --> oaPinFig
+ * oaPinFig inherits from oaFig, which provides getBBox() method
+ * This approach focuses on pin figures from terminals rather than all routing shapes
+ */
+double computeHPWLForNetAlt(oaNet* net) {
+	oaBox bbox;
+	bool bboxInitialized = false;
+
+	// Process primary I/O terminals (oaTerm)
+	// Following the TA's explicit path: oaTerm --> oaPin --> oaPinFig
+	oaIter<oaTerm> termIterator(net->getTerms());
+	while (oaTerm* term = termIterator.getNext()) {
+		// Get the pins from the terminal
+		oaIter<oaPin> pinIterator(term->getPins());
+		while (oaPin* pin = pinIterator.getNext()) {
+			// Get all pin figures for this pin
+			// oaPinFig inherits from oaFig which provides getBBox()
+			oaIter<oaPinFig> pinFigIterator(pin->getFigs());
+			while (oaPinFig* pinFig = pinFigIterator.getNext()) {
+				// Get bounding box of the pin figure
+				oaBox pinBox;
+				pinFig->getBBox(pinBox);
+
+				if (!bboxInitialized) {
+					bbox = pinBox;
+					bboxInitialized = true;
+				} else {
+					// Expand bounding box to include this pin figure
+					oaPoint lowerLeft = bbox.lowerLeft();
+					oaPoint upperRight = bbox.upperRight();
+					oaPoint pinLowerLeft = pinBox.lowerLeft();
+					oaPoint pinUpperRight = pinBox.upperRight();
+
+					oaInt4 minX = std::min(lowerLeft.x(), pinLowerLeft.x());
+					oaInt4 minY = std::min(lowerLeft.y(), pinLowerLeft.y());
+					oaInt4 maxX = std::max(upperRight.x(), pinUpperRight.x());
+					oaInt4 maxY = std::max(upperRight.y(), pinUpperRight.y());
+
+					bbox.set(minX, minY, maxX, maxY);
+				}
+			}
+		}
+	}
+
+	// Process instance terminals (oaInstTerm)
+	// Use instance center as approximation for pin location
+	oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
+	while (oaInstTerm* instTerm = instTermIterator.getNext()) {
+		oaInst* instance = instTerm->getInst();
+		
+		// Get instance bounding box and calculate center point
+		oaBox instanceBBox;
+		instance->getBBox(instanceBBox);
+		oaPoint instanceLowerLeft = instanceBBox.lowerLeft();
+		oaPoint instanceUpperRight = instanceBBox.upperRight();
+		
+		oaInt4 instanceCenterX = (instanceLowerLeft.x() + instanceUpperRight.x()) / 2;
+		oaInt4 instanceCenterY = (instanceLowerLeft.y() + instanceUpperRight.y()) / 2;
+		
+		if (!bboxInitialized) {
+			// Initialize bbox with instance center point
+			bbox.set(instanceCenterX, instanceCenterY, instanceCenterX, instanceCenterY);
+			bboxInitialized = true;
+		} else {
+			// Expand bbox to include instance center
+			oaPoint currentLowerLeft = bbox.lowerLeft();
+			oaPoint currentUpperRight = bbox.upperRight();
+			
+			oaInt4 minX = std::min(currentLowerLeft.x(), instanceCenterX);
+			oaInt4 minY = std::min(currentLowerLeft.y(), instanceCenterY);
+			oaInt4 maxX = std::max(currentUpperRight.x(), instanceCenterX);
+			oaInt4 maxY = std::max(currentUpperRight.y(), instanceCenterY);
+			
+			bbox.set(minX, minY, maxX, maxY);
+		}
+	}
+
+	// If no pins/instances found, return -1 to indicate invalid
 	if (!bboxInitialized) {
 		return -1;
 	}

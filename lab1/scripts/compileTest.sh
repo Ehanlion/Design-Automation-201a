@@ -13,7 +13,7 @@ rm -f Lab1_test
 COMMON_DIR="/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common"
 
 # Compile Lab1_test.cpp
-g++ -Wno-ctor-dtor-privacy -O -I/w/class.1/ee/ee201o/ee201ota/oa/include/oa \
+g++ -std=c++11 -Wno-ctor-dtor-privacy -O -I/w/class.1/ee/ee201o/ee201ota/oa/include/oa \
     -I/w/class.1/ee/ee201o/ee201ota/oa/include \
     -c Lab1_test.cpp -o Lab1_test.o
 
@@ -23,7 +23,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Link test object file with common object files (observer classes and helper functions)
-g++ -Wno-ctor-dtor-privacy -O -o Lab1_test Lab1_test.o \
+g++ -std=c++11 -Wno-ctor-dtor-privacy -O -o Lab1_test Lab1_test.o \
     ${COMMON_DIR}/commonTechObserver.o \
     ${COMMON_DIR}/commonLibDefListObserver.o \
     ${COMMON_DIR}/commonFunctions.o \

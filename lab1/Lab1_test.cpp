@@ -4,6 +4,7 @@
 
 #include "oaDesignDB.h"
 #include <algorithm>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -11,6 +12,7 @@
 #include <string>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <tuple>
 #include <vector>
 
 // Includes from a class library - helper utilities for OpenAccess
@@ -35,9 +37,10 @@ vector<int> getFanout(oaDesign* design);
 void testFanoutCalculation(oaDesign* design, int numNetsToTest = 5);
 double computeAverage(vector<int> arr);
 double computeAverage(vector<double> arr);
-pair<vector<double>, vector<double> > computeHPWL(oaDesign* design);
+std::tuple<vector<double>, vector<double>, vector<double> > computeHPWL(oaDesign* design);
 double computeHPWLForNet(oaNet* net);
 double computeHPWLForNetAlt(oaNet* net);
+double computeHPWLForNetAlt2(oaNet* net);
 void plotFanoutHistogram(vector<int> fanoutArray, const string& filename);
 void plotHPWLHistogram(vector<double> hpwlArray, const string& filename);
 void plotFanoutHistogramTerminal(vector<int> fanoutArray);
@@ -85,9 +88,10 @@ int main() {
 
 		// Problem 3: Compute HPWL for nets with 2 ends
 		cout << "----- Ethan Owen: Problem 3 -----" << endl;
-		pair<vector<double>, vector<double> > hpwlResults = computeHPWL(design);
-		vector<double> hpwlArray = hpwlResults.first;
-		vector<double> hpwlArrayAlt = hpwlResults.second;
+		std::tuple<vector<double>, vector<double>, vector<double> > hpwlResults = computeHPWL(design);
+		vector<double> hpwlArray = std::get<0>(hpwlResults);
+		vector<double> hpwlArrayAlt = std::get<1>(hpwlResults);
+		vector<double> hpwlArrayAlt2 = std::get<2>(hpwlResults);
 		
 		double averageHPWL = computeAverage(hpwlArray);
 		cout << "Problem 3 -- Average wirelength (Shape-based) " << averageHPWL << endl;
@@ -96,9 +100,13 @@ int main() {
 		double averageHPWLAlt = computeAverage(hpwlArrayAlt);
 		cout << "Problem 3 -- Average wirelength (Pin-based) " << averageHPWLAlt << endl;
 		cout << "Total nets with 2 ends (Alt): " << hpwlArrayAlt.size() << endl;
+		
+		double averageHPWLAlt2 = computeAverage(hpwlArrayAlt2);
+		cout << "Problem 3 -- Average wirelength (Alt2 - Helper Lambdas) " << averageHPWLAlt2 << endl;
+		cout << "Total nets with 2 ends (Alt2): " << hpwlArrayAlt2.size() << endl;
 		cout << endl;
 
-		// Generate HPWL histogram plots for both approaches
+		// Generate HPWL histogram plots for all approaches
 		if (!hpwlArray.empty()) {
 			plotHPWLHistogram(hpwlArray, "plotting/hpwl_histogram.html");
 			cout << "HPWL histogram (Shape-based) saved to plotting/hpwl_histogram.html" << endl;
@@ -116,6 +124,16 @@ int main() {
 			plotHPWLHistogramTerminal(hpwlArrayAlt);
 		} else {
 			cout << "\nCannot generate alternative HPWL histogram, no nets with 2 ends found!" << endl;
+		}
+		
+		if (!hpwlArrayAlt2.empty()) {
+			plotHPWLHistogram(hpwlArrayAlt2, "plotting/hpwl_histogram_alt2.html");
+			cout << "HPWL histogram (Alt2 - Helper Lambdas) saved to plotting/hpwl_histogram_alt2.html" << endl;
+			// Also plot to terminal
+			cout << "\n--- Alternative Approach #2 (Helper Lambdas) ---" << endl;
+			plotHPWLHistogramTerminal(hpwlArrayAlt2);
+		} else {
+			cout << "\nCannot generate Alt2 HPWL histogram, no nets with 2 ends found!" << endl;
 		}
 		cout << endl;
 	} catch (oaCompatibilityError& ex) {
@@ -473,16 +491,18 @@ double computeAverage(vector<double> arr) {
 
 /*
  * Compute HPWL for all nets with exactly 2 ends (2 terminals)
- * Returns a pair of vectors: first is shape-based approach, second is pin-based approach
+ * Returns a tuple of vectors: first is shape-based approach, second is pin-based approach (Alt),
+ * third is alternative approach #2 (Alt2)
  */
-pair<vector<double>, vector<double> > computeHPWL(oaDesign* design) {
+std::tuple<vector<double>, vector<double>, vector<double> > computeHPWL(oaDesign* design) {
 	vector<double> hpwlArray;
 	vector<double> hpwlArrayAlt;
+	vector<double> hpwlArrayAlt2;
 
 	// Get the top block of the design
 	oaBlock* block = design->getTopBlock();
 	if (!block) {
-		return make_pair(hpwlArray, hpwlArrayAlt);
+		return std::make_tuple(hpwlArray, hpwlArrayAlt, hpwlArrayAlt2);
 	}
 
 	// Iterate through all nets
@@ -536,10 +556,18 @@ pair<vector<double>, vector<double> > computeHPWL(oaDesign* design) {
 			} else {
 				cout << "Invalid HPWL value for net: " + netName << endl;
 			}
+			
+			// Also compute using alternative approach #2 (helper lambdas)
+			double hpwlAlt2 = computeHPWLForNetAlt2(net);
+			if (hpwlAlt2 >= 0) { // Valid HPWL value
+				hpwlArrayAlt2.push_back(hpwlAlt2);
+			} else {
+				cout << "Invalid HPWL value for net: " + netName << endl;
+			}
 		}
 	}
 
-	return make_pair(hpwlArray, hpwlArrayAlt);
+	return std::make_tuple(hpwlArray, hpwlArrayAlt, hpwlArrayAlt2);
 }
 
 /*
@@ -650,6 +678,12 @@ double computeHPWLForNetAlt(oaNet* net) {
 		oaPoint instanceLowerLeft = instanceBBox.lowerLeft();
 		oaPoint instanceUpperRight = instanceBBox.upperRight();
 		
+		// The instance centers are used as an approximation for the physical location of the connection
+		// point of an oaInstTerm (instance terminal). This is necessary because, in OpenAccess,
+		// instance terminals may not have explicit pin figures or geometries defined like primary I/O.
+		// Using the center of the instance bounding box provides a reasonable technique to include
+		// the instance terminals' positions when expanding the overall bounding box for HPWL calculation.
+		// This ensures that both primary I/O and connected instances are accounted for in HPWL.
 		oaInt4 instanceCenterX = (instanceLowerLeft.x() + instanceUpperRight.x()) / 2;
 		oaInt4 instanceCenterY = (instanceLowerLeft.y() + instanceUpperRight.y()) / 2;
 		
@@ -681,6 +715,107 @@ double computeHPWLForNetAlt(oaNet* net) {
 	oaPoint upperRight = bbox.upperRight();
 	oaInt4 width = upperRight.x() - lowerLeft.x();
 	oaInt4 height = upperRight.y() - lowerLeft.y();
+
+	return (double)(width + height);
+}
+
+/*
+ * Compute HPWL for a single net using alternative approach #2
+ * Uses helper lambdas to extract points from instance terms and block terms,
+ * then computes HPWL from collected points
+ */
+double computeHPWLForNetAlt2(oaNet* net) {
+	// Helper lambda: given an oaInstTerm, get the INSTANCE origin as the endpoint point
+	// Returns true if successful, false if something was null/unavailable.
+	auto getPointFromInstTerm = [&](oaInstTerm* instTerm, oaPoint& p) -> bool {
+		if (!instTerm) return false;             // safety: instTerm pointer missing
+		oaInst* inst = instTerm->getInst();      // get the instance that owns this instTerm
+		if (!inst) return false;                 // safety: instance missing
+		inst->getOrigin(p);                      // fill 'p' with instance (x,y) origin
+		return true;
+	};
+
+	// Helper lambda: given a BLOCK oaTerm* (top-level port), derive a point from its pin geometry
+	// We:
+	//   - grab the first oaPin on the term
+	//   - grab the first oaPinFig (geometry) on that pin
+	//   - use bounding box center as the port location
+	auto getPointFromBlockTerm = [&](oaTerm* term, oaPoint& p) -> bool {
+		if (!term) return false;                   // safety: term pointer missing
+
+		// term->getPins() returns pins belonging to this term (physical pins)
+		oaIter<oaPin> pinIt(term->getPins());
+		oaPin* pin = pinIt.getNext();              // take the first pin (common/simple approach)
+		if (!pin) return false;
+
+		// pin->getFigs() returns the shapes (oaPinFig) that define the pin geometry
+		oaIter<oaPinFig> figIt(pin->getFigs());
+		oaPinFig* pf = figIt.getNext();           // take the first figure
+		if (!pf) return false;
+
+		// oaPinFig inherits from oaFig, so we can query its bounding box
+		oaBox b;
+		pf->getBBox(b);
+
+		// Use bbox center as an approximate coordinate for this block port
+		p.set((b.left() + b.right()) / 2,
+		      (b.bottom() + b.top()) / 2);
+
+		return true;
+	};
+
+	// Collect all points from instance terms and block terms
+	vector<oaPoint> points;
+
+	// Process instance terminals (oaInstTerm)
+	oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
+	while (oaInstTerm* instTerm = instTermIterator.getNext()) {
+		oaPoint point;
+		if (getPointFromInstTerm(instTerm, point)) {
+			points.push_back(point);
+		}
+	}
+
+	// Process primary I/O terminals (oaTerm)
+	oaIter<oaTerm> termIterator(net->getTerms());
+	while (oaTerm* term = termIterator.getNext()) {
+		oaPoint point;
+		if (getPointFromBlockTerm(term, point)) {
+			points.push_back(point);
+		}
+	}
+
+	// If no points found, return -1 to indicate invalid
+	if (points.empty()) {
+		return -1;
+	}
+
+	// For 2-end nets, compute HPWL as Manhattan distance
+	if (points.size() == 2) {
+		// HPWL for 2-end net = Manhattan distance between two points
+		// HPWL = |x2-x1| + |y2-y1|
+		long long hpwl =
+			llabs((long long)points[1].x() - (long long)points[0].x()) +
+			llabs((long long)points[1].y() - (long long)points[0].y());
+		return (double)hpwl;
+	}
+
+	// For multi-end nets, compute bounding box from all points
+	oaInt4 minX = points[0].x();
+	oaInt4 minY = points[0].y();
+	oaInt4 maxX = points[0].x();
+	oaInt4 maxY = points[0].y();
+
+	for (size_t i = 1; i < points.size(); i++) {
+		minX = std::min(minX, points[i].x());
+		minY = std::min(minY, points[i].y());
+		maxX = std::max(maxX, points[i].x());
+		maxY = std::max(maxY, points[i].y());
+	}
+
+	// Calculate HPWL = (max_x - min_x) + (max_y - min_y)
+	oaInt4 width = maxX - minX;
+	oaInt4 height = maxY - minY;
 
 	return (double)(width + height);
 }

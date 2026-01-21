@@ -678,12 +678,6 @@ double computeHPWLForNetAlt(oaNet* net) {
 		oaPoint instanceLowerLeft = instanceBBox.lowerLeft();
 		oaPoint instanceUpperRight = instanceBBox.upperRight();
 		
-		// The instance centers are used as an approximation for the physical location of the connection
-		// point of an oaInstTerm (instance terminal). This is necessary because, in OpenAccess,
-		// instance terminals may not have explicit pin figures or geometries defined like primary I/O.
-		// Using the center of the instance bounding box provides a reasonable technique to include
-		// the instance terminals' positions when expanding the overall bounding box for HPWL calculation.
-		// This ensures that both primary I/O and connected instances are accounted for in HPWL.
 		oaInt4 instanceCenterX = (instanceLowerLeft.x() + instanceUpperRight.x()) / 2;
 		oaInt4 instanceCenterY = (instanceLowerLeft.y() + instanceUpperRight.y()) / 2;
 		

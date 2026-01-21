@@ -48,7 +48,7 @@ void plotHPWLHistogramTerminal(vector<double> hpwlArray);
  */
 int main() {
 	// Enable flag for HTML file generation
-	const bool ENABLE_HTML_GENERATION = false;
+	const bool ENABLE_HTML_GENERATION = true;
 
 	try {
 		// Problem 1: setup OpenAccess
@@ -280,7 +280,7 @@ void printFilteredNets(oaDesign* design) {
  * Counts all instance terminals as loads
  * Counts primary I/O terminals as loads, only counting inputs
  */
- vector<int> getFanout(oaDesign* design) {
+vector<int> getFanout(oaDesign* design) {
 	vector<int> fanoutArray;
 
 	// Get the top block of the design
@@ -318,13 +318,13 @@ void printFilteredNets(oaDesign* design) {
 
 		// Count fanout for a net
 		int fanout = 0;
-		
+
 		// Count all instance terminals as loads (inputs)
 		oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
 		while (oaInstTerm* instTerm = instTermIterator.getNext()) {
 			fanout++;
 		}
-		
+
 		// For primary I/O terminals (terms), only count INPUTs as loads
 		oaIter<oaTerm> termIterator(net->getTerms());
 		while (oaTerm* term = termIterator.getNext()) {
@@ -454,33 +454,76 @@ double computeHPWLForNet(oaNet* net) {
 	oaBox bbox;
 	bool bboxInitialized = false;
 
-	// Iterate through all shapes on the net (across all metal layers)
-	// This includes shapes on all routing layers
-	oaIter<oaShape> shapeIterator(net->getShapes());
-	while (oaShape* shape = shapeIterator.getNext()) {
-		oaBox shapeBox;
-		shape->getBBox(shapeBox);
+	// Process primary I/O terminals (oaTerm)
+	// Following the TA's explicit path: oaTerm --> oaPin --> oaPinFig
+	oaIter<oaTerm> termIterator(net->getTerms());
+	while (oaTerm* term = termIterator.getNext()) {
+		// Get the pins from the terminal
+		oaIter<oaPin> pinIterator(term->getPins());
+		while (oaPin* pin = pinIterator.getNext()) {
+			// Get all pin figures for this pin
+			// oaPinFig inherits from oaFig which provides getBBox()
+			oaIter<oaPinFig> pinFigIterator(pin->getFigs());
+			while (oaPinFig* pinFig = pinFigIterator.getNext()) {
+				// Get bounding box of the pin figure
+				oaBox pinBox;
+				pinFig->getBBox(pinBox);
+
+				if (!bboxInitialized) {
+					bbox = pinBox;
+					bboxInitialized = true;
+				} else {
+					// Expand bounding box to include this pin figure
+					oaPoint lowerLeft = bbox.lowerLeft();
+					oaPoint upperRight = bbox.upperRight();
+					oaPoint pinLowerLeft = pinBox.lowerLeft();
+					oaPoint pinUpperRight = pinBox.upperRight();
+
+					oaInt4 minX = std::min(lowerLeft.x(), pinLowerLeft.x());
+					oaInt4 minY = std::min(lowerLeft.y(), pinLowerLeft.y());
+					oaInt4 maxX = std::max(upperRight.x(), pinUpperRight.x());
+					oaInt4 maxY = std::max(upperRight.y(), pinUpperRight.y());
+
+					bbox.set(minX, minY, maxX, maxY);
+				}
+			}
+		}
+	}
+
+	// Process instance terminals (oaInstTerm)
+	// Use instance center as approximation for pin location
+	oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
+	while (oaInstTerm* instTerm = instTermIterator.getNext()) {
+		oaInst* instance = instTerm->getInst();
+
+		// Get instance bounding box and calculate center point
+		oaBox instanceBBox;
+		instance->getBBox(instanceBBox);
+		oaPoint instanceLowerLeft = instanceBBox.lowerLeft();
+		oaPoint instanceUpperRight = instanceBBox.upperRight();
+
+		oaInt4 instanceCenterX = (instanceLowerLeft.x() + instanceUpperRight.x()) / 2;
+		oaInt4 instanceCenterY = (instanceLowerLeft.y() + instanceUpperRight.y()) / 2;
 
 		if (!bboxInitialized) {
-			bbox = shapeBox;
+			// Initialize bbox with instance center point
+			bbox.set(instanceCenterX, instanceCenterY, instanceCenterX, instanceCenterY);
 			bboxInitialized = true;
 		} else {
-			// Expand bounding box to include this shape
-			oaPoint lowerLeft = bbox.lowerLeft();
-			oaPoint upperRight = bbox.upperRight();
-			oaPoint shapeLowerLeft = shapeBox.lowerLeft();
-			oaPoint shapeUpperRight = shapeBox.upperRight();
+			// Expand bbox to include instance center
+			oaPoint currentLowerLeft = bbox.lowerLeft();
+			oaPoint currentUpperRight = bbox.upperRight();
 
-			oaInt4 minX = std::min(lowerLeft.x(), shapeLowerLeft.x());
-			oaInt4 minY = std::min(lowerLeft.y(), shapeLowerLeft.y());
-			oaInt4 maxX = std::max(upperRight.x(), shapeUpperRight.x());
-			oaInt4 maxY = std::max(upperRight.y(), shapeUpperRight.y());
+			oaInt4 minX = std::min(currentLowerLeft.x(), instanceCenterX);
+			oaInt4 minY = std::min(currentLowerLeft.y(), instanceCenterY);
+			oaInt4 maxX = std::max(currentUpperRight.x(), instanceCenterX);
+			oaInt4 maxY = std::max(currentUpperRight.y(), instanceCenterY);
 
 			bbox.set(minX, minY, maxX, maxY);
 		}
 	}
 
-	// If no shapes found, return -1 to indicate invalid
+	// If no pins/instances found, return -1 to indicate invalid
 	if (!bboxInitialized) {
 		return -1;
 	}
@@ -790,197 +833,205 @@ void plotHPWLHistogram(vector<double> hpwlArray, const string& filename) {
  * HistogramConfig - Configuration structure for customizing histogram plots
  */
 struct HistogramConfig {
-    string title;                    // Main title of the histogram
-    string xAxisLabel;               // Label for X-axis (e.g., "Fanout Value", "HPWL Range")
-    string yAxisLabel;               // Label for Y-axis (e.g., "Number of Nets")
-    string description;              // Description/subtitle at the bottom
-    
-    // Statistics labels
-    string totalLabel;               // Label for total count (e.g., "Total Nets", "Total Nets (2 ends)")
-    string averageLabel;             // Label for average (e.g., "Average Fanout", "Average HPWL")
-    string minLabel;                 // Label for minimum value (empty string to hide)
-    string maxLabel;                 // Label for maximum value (empty string to hide)
-    
-    // Histogram type configuration
-    bool useBins;                    // true for continuous data (bins), false for discrete values
-    int numBins;                     // Number of bins (only used if useBins == true)
-    int precision;                   // Decimal precision for displaying numbers
-    
-    // Display configuration
-    int maxBarWidth;                 // Maximum width of bars in characters
-    int labelWidth;                  // Width reserved for labels
-    
-    // Default constructor with sensible defaults
-    HistogramConfig() :
-        title("Distribution Histogram"),
-        xAxisLabel("Value"),
-        yAxisLabel("Count"),
-        description("Distribution of Values"),
-        totalLabel("Total"),
-        averageLabel("Average"),
-        minLabel(""),
-        maxLabel(""),
-        useBins(false),
-        numBins(20),
-        precision(2),
-        maxBarWidth(60),
-        labelWidth(28)
-    {}
+	string title;		// Main title of the histogram
+	string xAxisLabel;	// Label for X-axis (e.g., "Fanout Value", "HPWL Range")
+	string yAxisLabel;	// Label for Y-axis (e.g., "Number of Nets")
+	string description; // Description/subtitle at the bottom
+
+	// Statistics labels
+	string totalLabel;	 // Label for total count (e.g., "Total Nets", "Total Nets (2 ends)")
+	string averageLabel; // Label for average (e.g., "Average Fanout", "Average HPWL")
+	string minLabel;	 // Label for minimum value (empty string to hide)
+	string maxLabel;	 // Label for maximum value (empty string to hide)
+
+	// Histogram type configuration
+	bool useBins;  // true for continuous data (bins), false for discrete values
+	int numBins;   // Number of bins (only used if useBins == true)
+	int precision; // Decimal precision for displaying numbers
+
+	// Display configuration
+	int maxBarWidth; // Maximum width of bars in characters
+	int labelWidth;	 // Width reserved for labels
+
+	// Default constructor with sensible defaults
+	HistogramConfig() : title("Distribution Histogram"),
+						xAxisLabel("Value"),
+						yAxisLabel("Count"),
+						description("Distribution of Values"),
+						totalLabel("Total"),
+						averageLabel("Average"),
+						minLabel(""),
+						maxLabel(""),
+						useBins(false),
+						numBins(20),
+						precision(2),
+						maxBarWidth(60),
+						labelWidth(28) {
+	}
 };
 
 /**
  * Normalize a value to fit within the display range
  */
 static int normalizeHistogramValue(int value, int maxValue, int maxWidth) {
-    if (maxValue == 0) return 0;
-    return (int)((double)value / maxValue * maxWidth);
+	if (maxValue == 0)
+		return 0;
+	return (int)((double)value / maxValue * maxWidth);
 }
 
 /**
  * Format a number with appropriate precision
  */
 static string formatHistogramNumber(double num, int precision = 2) {
-    ostringstream oss;
-    oss << fixed << setprecision(precision) << num;
-    return oss.str();
+	ostringstream oss;
+	oss << fixed << setprecision(precision) << num;
+	return oss.str();
 }
 
 /**
  * Create a horizontal bar using ASCII characters
  */
 static string createHistogramBar(int width) {
-    if (width <= 0) return "";
-    return string(width, '#');
+	if (width <= 0)
+		return "";
+	return string(width, '#');
 }
 
 /**
  * Format a label string, truncating if necessary
  */
 static string formatHistogramLabel(const string& label, int maxWidth) {
-    if (label.length() <= maxWidth) return label;
-    return label.substr(0, maxWidth - 3) + "...";
+	if (label.length() <= maxWidth)
+		return label;
+	return label.substr(0, maxWidth - 3) + "...";
 }
 
 /**
  * Generic histogram plotting function
  * Works with any numeric type (int, double, float, etc.)
  */
-template<typename T>
+template <typename T>
 static void plotHistogramGeneric(const vector<T>& data, const HistogramConfig& config) {
-    if (data.empty()) {
-        cerr << "ERROR: Data array is empty, cannot create histogram" << endl;
-        return;
-    }
+	if (data.empty()) {
+		cerr << "ERROR: Data array is empty, cannot create histogram" << endl;
+		return;
+	}
 
-    map<int, int> histogram; // bin/value index -> count
-    int maxCount = 0;
-    double minVal = 0, maxVal = 0;
-    double sum = 0;
+	map<int, int> histogram; // bin/value index -> count
+	int maxCount = 0;
+	double minVal = 0, maxVal = 0;
+	double sum = 0;
 
-    if (config.useBins) {
-        // Continuous data: use bins
-        // Find min and max values
-        minVal = (double)data[0];
-        maxVal = (double)data[0];
-        for (size_t i = 1; i < data.size(); i++) {
-            double val = (double)data[i];
-            if (val < minVal) minVal = val;
-            if (val > maxVal) maxVal = val;
-        }
+	if (config.useBins) {
+		// Continuous data: use bins
+		// Find min and max values
+		minVal = (double)data[0];
+		maxVal = (double)data[0];
+		for (size_t i = 1; i < data.size(); i++) {
+			double val = (double)data[i];
+			if (val < minVal)
+				minVal = val;
+			if (val > maxVal)
+				maxVal = val;
+		}
 
-        // Create bins
-        double binWidth = (maxVal - minVal) / config.numBins;
-        if (binWidth == 0) binWidth = 1; // Avoid division by zero
+		// Create bins
+		double binWidth = (maxVal - minVal) / config.numBins;
+		if (binWidth == 0)
+			binWidth = 1; // Avoid division by zero
 
-        // Build histogram
-        for (size_t i = 0; i < data.size(); i++) {
-            double val = (double)data[i];
-            int binIndex = (int)((val - minVal) / binWidth);
-            if (binIndex >= config.numBins)
-                binIndex = config.numBins - 1; // Put max value in last bin
-            histogram[binIndex]++;
-            if (histogram[binIndex] > maxCount) {
-                maxCount = histogram[binIndex];
-            }
-            sum += val;
-        }
-    } else {
-        // Discrete data: count each value
-        int minValInt = (int)data[0];
-        int maxValInt = (int)data[0];
-        
-        for (size_t i = 0; i < data.size(); i++) {
-            int val = (int)data[i];
-            histogram[val]++;
-            if (histogram[val] > maxCount) {
-                maxCount = histogram[val];
-            }
-            if (val < minValInt) minValInt = val;
-            if (val > maxValInt) maxValInt = val;
-            sum += (double)data[i];
-        }
-        minVal = minValInt;
-        maxVal = maxValInt;
-    }
+		// Build histogram
+		for (size_t i = 0; i < data.size(); i++) {
+			double val = (double)data[i];
+			int binIndex = (int)((val - minVal) / binWidth);
+			if (binIndex >= config.numBins)
+				binIndex = config.numBins - 1; // Put max value in last bin
+			histogram[binIndex]++;
+			if (histogram[binIndex] > maxCount) {
+				maxCount = histogram[binIndex];
+			}
+			sum += val;
+		}
+	} else {
+		// Discrete data: count each value
+		int minValInt = (int)data[0];
+		int maxValInt = (int)data[0];
 
-    // Calculate average
-    double avg = data.size() > 0 ? sum / data.size() : 0;
+		for (size_t i = 0; i < data.size(); i++) {
+			int val = (int)data[i];
+			histogram[val]++;
+			if (histogram[val] > maxCount) {
+				maxCount = histogram[val];
+			}
+			if (val < minValInt)
+				minValInt = val;
+			if (val > maxValInt)
+				maxValInt = val;
+			sum += (double)data[i];
+		}
+		minVal = minValInt;
+		maxVal = maxValInt;
+	}
 
-    // Print header and statistics
-    cout << "\n";
-    cout << "========================================================================" << endl;
-    cout << "                    " << config.title << endl;
-    cout << "------------------------------------------------------------------------" << endl;
-    cout << config.totalLabel << ": " << data.size() << endl;
-    cout << config.averageLabel << ": " << formatHistogramNumber(avg, config.precision) << endl;
-    if (!config.minLabel.empty()) {
-        cout << config.minLabel << ": " << formatHistogramNumber(minVal, config.precision) << endl;
-    }
-    if (!config.maxLabel.empty()) {
-        cout << config.maxLabel << ": " << formatHistogramNumber(maxVal, config.precision) << endl;
-    }
-    cout << "------------------------------------------------------------------------" << endl;
-    cout << setw(config.labelWidth) << left << config.xAxisLabel << " | " << config.yAxisLabel << endl;
-    cout << string(config.labelWidth, '-') << "-|-" << string(config.maxBarWidth, '-') << endl;
+	// Calculate average
+	double avg = data.size() > 0 ? sum / data.size() : 0;
 
-    // Print histogram bars
-    if (config.useBins) {
-        // Print bins
-        double binWidth = (maxVal - minVal) / config.numBins;
-        if (binWidth == 0) binWidth = 1;
-        
-        for (int i = 0; i < config.numBins; i++) {
-            int count = (histogram.find(i) != histogram.end()) ? histogram[i] : 0;
-            int barWidth = normalizeHistogramValue(count, maxCount, config.maxBarWidth);
-            string bar = createHistogramBar(barWidth);
-            
-            double binStart = minVal + i * binWidth;
-            double binEnd = minVal + (i + 1) * binWidth;
-            string rangeLabel = formatHistogramNumber(binStart, config.precision) + "-" + formatHistogramNumber(binEnd, config.precision);
-            rangeLabel = formatHistogramLabel(rangeLabel, config.labelWidth);
-            
-            cout << setw(config.labelWidth) << left << rangeLabel << " | " 
-                 << setw(4) << right << count << " " << bar << endl;
-        }
-    } else {
-        // Print discrete values
-        int minValInt = (int)minVal;
-        int maxValInt = (int)maxVal;
-        
-        for (int i = minValInt; i <= maxValInt; i++) {
-            int count = (histogram.find(i) != histogram.end()) ? histogram[i] : 0;
-            int barWidth = normalizeHistogramValue(count, maxCount, config.maxBarWidth);
-            string bar = createHistogramBar(barWidth);
-            
-            cout << setw(config.labelWidth) << right << i << " | " 
-                 << setw(4) << right << count << " " << bar << endl;
-        }
-    }
+	// Print header and statistics
+	cout << "\n";
+	cout << "========================================================================" << endl;
+	cout << "                    " << config.title << endl;
+	cout << "------------------------------------------------------------------------" << endl;
+	cout << config.totalLabel << ": " << data.size() << endl;
+	cout << config.averageLabel << ": " << formatHistogramNumber(avg, config.precision) << endl;
+	if (!config.minLabel.empty()) {
+		cout << config.minLabel << ": " << formatHistogramNumber(minVal, config.precision) << endl;
+	}
+	if (!config.maxLabel.empty()) {
+		cout << config.maxLabel << ": " << formatHistogramNumber(maxVal, config.precision) << endl;
+	}
+	cout << "------------------------------------------------------------------------" << endl;
+	cout << setw(config.labelWidth) << left << config.xAxisLabel << " | " << config.yAxisLabel << endl;
+	cout << string(config.labelWidth, '-') << "-|-" << string(config.maxBarWidth, '-') << endl;
 
-    cout << "------------------------------------------------------------------------" << endl;
-    cout << config.description << endl;
-    cout << "========================================================================" << endl;
-    cout << "\n";
+	// Print histogram bars
+	if (config.useBins) {
+		// Print bins
+		double binWidth = (maxVal - minVal) / config.numBins;
+		if (binWidth == 0)
+			binWidth = 1;
+
+		for (int i = 0; i < config.numBins; i++) {
+			int count = (histogram.find(i) != histogram.end()) ? histogram[i] : 0;
+			int barWidth = normalizeHistogramValue(count, maxCount, config.maxBarWidth);
+			string bar = createHistogramBar(barWidth);
+
+			double binStart = minVal + i * binWidth;
+			double binEnd = minVal + (i + 1) * binWidth;
+			string rangeLabel = formatHistogramNumber(binStart, config.precision) + "-" + formatHistogramNumber(binEnd, config.precision);
+			rangeLabel = formatHistogramLabel(rangeLabel, config.labelWidth);
+
+			cout << setw(config.labelWidth) << left << rangeLabel << " | "
+				 << setw(4) << right << count << " " << bar << endl;
+		}
+	} else {
+		// Print discrete values
+		int minValInt = (int)minVal;
+		int maxValInt = (int)maxVal;
+
+		for (int i = minValInt; i <= maxValInt; i++) {
+			int count = (histogram.find(i) != histogram.end()) ? histogram[i] : 0;
+			int barWidth = normalizeHistogramValue(count, maxCount, config.maxBarWidth);
+			string bar = createHistogramBar(barWidth);
+
+			cout << setw(config.labelWidth) << right << i << " | "
+				 << setw(4) << right << count << " " << bar << endl;
+		}
+	}
+
+	cout << "------------------------------------------------------------------------" << endl;
+	cout << config.description << endl;
+	cout << "========================================================================" << endl;
+	cout << "\n";
 }
 
 /*

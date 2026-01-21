@@ -17,11 +17,11 @@
         <p><strong>Average HPWL:</strong> 10237.6</p>
         <p><strong>Min HPWL:</strong> 0</p>
         <p><strong>Max HPWL:</strong> 50790</p>
-        <canvas id="hpwlChart" width="400" height="200"></canvas>
+        <canvas id="histogramChart" width="400" height="200"></canvas>
     </div>
     <script>
-        const ctx = document.getElementById('hpwlChart').getContext('2d');
-        const hpwlChart = new Chart(ctx, {
+        const ctx = document.getElementById('histogramChart').getContext('2d');
+        const chart = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: ["0-2539.5", "2539.5-5079", "5079-7618.5", "7618.5-10158", "10158-12697.5", "12697.5-15237", "15237-17776.5", "17776.5-20316", "20316-22855.5", "22855.5-25395", "25395-27934.5", "27934.5-30474", "30474-33013.5", "33013.5-35553", "35553-38092.5", "38092.5-40632", "40632-43171.5", "43171.5-45711", "45711-48250.5", "48250.5-50790"],
@@ -62,7 +62,7 @@
                     },
                     title: {
                         display: true,
-                        text: 'Distribution of HPWL Values for Nets with 2 Ends'
+                        text: 'HPWL Distribution Histogram'
                     }
                 }
             }

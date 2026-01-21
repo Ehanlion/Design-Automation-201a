@@ -4,15 +4,9 @@
 
 #include "oaDesignDB.h"
 #include <algorithm>
-#include <fstream>
-#include <iomanip>
 #include <iostream>
-#include <map>
 #include <numeric>
-#include <sstream>
 #include <string>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <vector>
 
 // Includes from a class library - helper utilities for OpenAccess
@@ -174,7 +168,7 @@ void printNets(oaDesign* design) {
 	if (block) {
 		oaString netName;
 		int lineCount = 5;
-		cout << "The following nets exist in this design." << endl;
+		cout << "All nets in the design:" << endl;
 		// Print out nets but do 3 per line
 		int count = 0;
 		oaIter<oaNet> netIterator(block->getNets());
@@ -221,7 +215,7 @@ void printFilteredNets(oaDesign* design) {
 				netName == "blif_reset_net" ||
 				netName == "tie1" ||
 				netName == "tie0") {
-				cout << "\t" << netName << " (custom)" << endl;
+				cout << "\t" << netName << " (name)" << endl;
 				count++;
 			} else if (sigType == oacPowerSigType ||
 					   sigType == oacGroundSigType ||
@@ -347,10 +341,6 @@ int countTerminals(oaNet* net) {
 	return terminalCount;
 }
 
-// ========================================================================
-// HPWL Computation Functions
-// ========================================================================
-
 /*
  * Compute HPWL for all nets with exactly 2 ends (2 terminals)
  * Returns a vector of HPWL values for each qualifying net
@@ -404,6 +394,8 @@ vector<double> computeHPWL(oaDesign* design) {
 			double hpwl = computeHPWLForNet(net);
 			if (hpwl >= 0) { // Valid HPWL value
 				hpwlArray.push_back(hpwl);
+			} else if (hpwl == -1) {
+				cout << "Warning: Invalid HPWL value for net: " + netName << endl;
 			}
 		}
 	}
@@ -491,6 +483,7 @@ double computeHPWLForNet(oaNet* net) {
 	}
 
 	// If no pins/instances found, return -1 to indicate invalid
+	// Then print later knowing we got a -1 return value
 	if (!bboxInitialized) {
 		return -1;
 	}

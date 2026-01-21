@@ -15,6 +15,8 @@ rm -f Lab1.o
 rm -f Lab1
 rm -f Lab1_test.o
 rm -f Lab1_test
+rm -f Lab1_print.o
+rm -f Lab1_print
 
 echo "Cleanup complete!"
 echo ""

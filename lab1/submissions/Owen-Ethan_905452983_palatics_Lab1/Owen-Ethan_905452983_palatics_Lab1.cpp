@@ -353,22 +353,6 @@ double computeAverage(vector<double> arr) {
 }
 
 /*
- * Count the number of terminals on a net
- */
-int countTerminals(oaNet* net) {
-	int terminalCount = 0;
-	oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
-	while (oaInstTerm* instTerm = instTermIterator.getNext()) {
-		terminalCount++;
-	}
-	oaIter<oaTerm> termIterator(net->getTerms());
-	while (oaTerm* term = termIterator.getNext()) {
-		terminalCount++;
-	}
-	return terminalCount;
-}
-
-/*
  * Compute HPWL for all nets with exactly 2 ends (2 terminals)
  * Returns a vector of HPWL values for each qualifying net
  */

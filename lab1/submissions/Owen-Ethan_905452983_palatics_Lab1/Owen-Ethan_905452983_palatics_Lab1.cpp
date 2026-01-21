@@ -1,6 +1,6 @@
 // Author: Ethan Owen
 // UID: 905452983
-// UCLA EE 201A Lab 1 Test File
+// UCLA EE 201A Lab 1
 
 #include "oaDesignDB.h"
 #include <algorithm>
@@ -14,7 +14,7 @@
 #include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonLibDefListObserver.h"
 #include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonTechObserver.h"
 
-
+// Namespaces
 using namespace std;
 using namespace oa;
 static oaNativeNS ns;
@@ -24,6 +24,7 @@ const string LIB_PATH_NAME = "./DesignLib";
 const string LIBRARY_NAME = "DesignLib";
 const string CELL_NAME = "s1196_bench";
 const string VIEW_NAME = "layout";
+const string DMSYSTEM_NAME = "DMSystem";
 
 // Function prototypes
 void setupOpenAccess();
@@ -39,7 +40,6 @@ double computeHPWLForNet(oaNet* net);
 
 /*
  * Main function
- * Tests the setupOpenAccess function
  */
 int main() {
 	try {
@@ -90,12 +90,14 @@ void setupOpenAccess() {
 	string libraryName = LIBRARY_NAME;
 	string cellName = CELL_NAME;
 	string viewName = VIEW_NAME;
+	string dmSystemName = DMSYSTEM_NAME;
 	
 	// Then we need to convert the strings to const char *
 	const char* libPathNameC = libPathName.c_str();
 	const char* libraryNameC = libraryName.c_str();
 	const char* cellNameC = cellName.c_str();
 	const char* viewNameC = viewName.c_str();
+	const char* dmSystemC = dmSystemName.c_str();
 	
 	// Then we need to create the oaString objects
 	oaString libPath(libPathNameC);
@@ -119,7 +121,7 @@ void setupOpenAccess() {
 		if (oaLib::exists(libPath)) {
 			lib = oaLib::open(libraryNameScalar, libPath);
 		} else {
-			char* DMSystem = getenv("DMSystem");
+			char* DMSystem = getenv(dmSystemC);
 			if (DMSystem) {
 				lib = oaLib::create(libraryNameScalar, libPath, oacSharedLibMode, DMSystem);
 			} else {
@@ -348,22 +350,6 @@ double computeAverage(vector<double> arr) {
 	double sum = accumulate(arr.begin(), arr.end(), 0);
 	double average = sum / arr.size();
 	return average;
-}
-
-/*
- * Count the number of terminals on a net
- */
-int countTerminals(oaNet* net) {
-	int terminalCount = 0;
-	oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
-	while (oaInstTerm* instTerm = instTermIterator.getNext()) {
-		terminalCount++;
-	}
-	oaIter<oaTerm> termIterator(net->getTerms());
-	while (oaTerm* term = termIterator.getNext()) {
-		terminalCount++;
-	}
-	return terminalCount;
 }
 
 /*

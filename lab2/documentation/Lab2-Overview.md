@@ -23,16 +23,16 @@ Get familiar with Tcl scripting, which is essential for Genus and Innovus. This 
 
 ### Deliverables
 - **Report:** List results and attach screenshot of your Tcl script
-- **Results File:** Fill in `results_submission.txt` with:
+- **Results File:** Fill in `results/results_submission.txt` with:
   - Average wirelength
   - Number of wires with length larger than 50
 
 ### Files Needed
-- `wirelength.txt` - Contains wirelength data (one wirelength per line)
+- `results/wirelength.txt` - Contains wirelength data (one wirelength per line)
 
 ### Task Order
 1. **Read the wirelength file**
-   - Use Tcl file I/O commands to read `wirelength.txt`
+   - Use Tcl file I/O commands to read `results/wirelength.txt`
    - Parse each line to extract wirelength values
 
 2. **Calculate average wirelength**
@@ -57,7 +57,7 @@ Get familiar with Tcl scripting, which is essential for Genus and Innovus. This 
 ### Suggested Code Structure
 ```tcl
 # Open and read wirelength.txt
-set fp [open "wirelength.txt" r]
+set fp [open "results/wirelength.txt" r]
 set wirelengths [list]
 while {[gets $fp line] >= 0} {
     lappend wirelengths $line
@@ -124,7 +124,7 @@ Find the best clock period that can be achieved without creating timing violatio
 3. **Initial synthesis with default clock period**
    - Start with clock period = 1000 ps (from skeleton)
    - Run synthesis: `genus < lab2_skeleton.tcl`
-   - Check timing reports in `output/synth_report_timing.txt`
+   - Check timing reports in `results/synth_report_timing.txt`
 
 4. **Iterative clock period reduction**
    - Reduce clock period incrementally (e.g., 1000 → 900 → 800 → ...)
@@ -144,13 +144,13 @@ Find the best clock period that can be achieved without creating timing violatio
 set clk_period 1000  # Start here, then reduce iteratively
 
 # After synthesis, check timing:
-# Look at output/synth_report_timing.txt for slack values
+# Look at results/synth_report_timing.txt for slack values
 # Negative slack = timing violation
 ```
 
 ### Key Commands
 - Run synthesis: `genus < lab2_skeleton.tcl`
-- Check timing: Review `output/synth_report_timing.txt`
+- Check timing: Review `results/synth_report_timing.txt`
 - Look for: Negative slack values indicate timing violations
 
 ---
@@ -256,8 +256,8 @@ Run synthesis flow while increasing clock period constraint from smallest period
      - Run synthesis
      - Record:
        - Clock period
-       - Total area (from `output/synth_report_gates.txt` or `report_gates`)
-       - Critical path slack (from `output/synth_report_timing.txt`)
+       - Total area (from `results/synth_report_gates.txt` or `report_gates`)
+       - Critical path slack (from `results/synth_report_timing.txt`)
 
 4. **Continue until slack ≤ 200 ps**
    - Stop when critical path slack is no more than 200 ps
@@ -277,7 +277,7 @@ Run synthesis flow while increasing clock period constraint from smallest period
 set clk_period 800  # Start from Problem 2B result, then increase
 
 # After synthesis, extract area:
-# Check output/synth_report_gates.txt for total area
+# Check results/synth_report_gates.txt for total area
 # Or use: report_gates
 ```
 
@@ -326,7 +326,7 @@ Modify skeleton script to synthesize design and optimize for low power without v
    - Retiming can help reduce power by optimizing register placement
 
 4. **Run synthesis and measure power**
-   - Check `output/synth_report_power.txt` for:
+   - Check `results/synth_report_power.txt` for:
      - Total power
      - Leakage power
      - Dynamic power
@@ -384,7 +384,7 @@ Example: `Gottscho-Mark_203555232_gottscho_Lab2/`
 Inside the submission directory, include exactly these files:
 
 1. **`Lastname-Firstname_UID_Username_results_submission.txt`**
-   - Filled-in `results_submission.txt` with all results
+   - Filled-in `results/results_submission.txt` with all results
    - **CRITICAL:** Required for autograding
 
 2. **`Lastname-Firstname_UID_Username_Lab2_2B.tcl`**
@@ -392,14 +392,14 @@ Inside the submission directory, include exactly these files:
 
 3. **`Lastname-Firstname_UID_Username_Lab2_2B.v`**
    - Synthesized Verilog output by Genus for Problem 2B
-   - Found in `output/` directory after running synthesis
+   - Found in `results/` directory after running synthesis
 
 4. **`Lastname-Firstname_UID_Username_Lab2_3B.tcl`**
    - Synthesis script for Problem 3B
 
 5. **`Lastname-Firstname_UID_Username_Lab2_3B.v`**
    - Synthesized Verilog output by Genus for Problem 3B
-   - Found in `output/` directory after running synthesis
+   - Found in `results/` directory after running synthesis
 
 6. **`Lastname-Firstname_UID_Username_Lab2_1.tcl`**
    - Tcl script for Problem 1
@@ -465,10 +465,10 @@ mkdir Gottscho-Mark_203555232_gottscho_Lab2
 # Copy required files
 cp synth2b.tcl Gottscho-Mark_203555232_gottscho_Lab2/Gottscho-Mark_203555232_gottscho_Lab2_2B.tcl
 cp synth3b.tcl Gottscho-Mark_203555232_gottscho_Lab2/Gottscho-Mark_203555232_gottscho_Lab2_3B.tcl
-cp output/s15850_synth2b.v Gottscho-Mark_203555232_gottscho_Lab2/Gottscho-Mark_203555232_gottscho_Lab2_2B.v
-cp output/s15850_synth3b.v Gottscho-Mark_203555232_gottscho_Lab2/Gottscho-Mark_203555232_gottscho_Lab2_3B.v
+cp results/s15850_synth2b.v Gottscho-Mark_203555232_gottscho_Lab2/Gottscho-Mark_203555232_gottscho_Lab2_2B.v
+cp results/s15850_synth3b.v Gottscho-Mark_203555232_gottscho_Lab2/Gottscho-Mark_203555232_gottscho_Lab2_3B.v
 cp problem1.tcl Gottscho-Mark_203555232_gottscho_Lab2/Gottscho-Mark_203555232_gottscho_Lab2_1.tcl
-cp results_submission.txt Gottscho-Mark_203555232_gottscho_Lab2/Gottscho-Mark_203555232_gottscho_results_submission.txt
+cp results/results_submission.txt Gottscho-Mark_203555232_gottscho_Lab2/Gottscho-Mark_203555232_gottscho_results_submission.txt
 cp report.pdf Gottscho-Mark_203555232_gottscho_Lab2/Gottscho-Mark_203555232_gottscho_Lab2.pdf
 
 # Set permissions

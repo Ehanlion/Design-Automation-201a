@@ -1,0 +1,29 @@
+# For Cadence
+# NOTE: Check if these specific SETUP files are compatible with bash. 
+# If they fail, look for files named "SETUP.sh" or "setup.bash" in those directories.
+source /w/apps3/Cadence/INNOVUS211/SETUP
+source /w/apps3/Cadence/GENUS211/SETUP
+source /w/apps3/Mentor/Calibre/2024.3_16.10/SETUP
+
+# Add Conformal bin
+export PATH="/w/apps3/Cadence/CONFRML241/bin:$PATH"
+
+# Append OpenAccess binaries to executable path
+export PATH="/w/class.1/ee/ee201a/ee201ata/oa/bin/linux_rhel40_64/opt:$PATH"
+export OA_PLUGIN_PATH="/w/class.1/ee/ee201a/ee201ata/oa/data/plugins"
+
+# Append OpenAccess libraries to load path
+if [ -z "$LD_LIBRARY_PATH" ]; then
+    export LD_LIBRARY_PATH="/w/class.1/ee/ee201a/ee201ata/oa/lib/linux_rhel40_64/opt"
+else
+    export LD_LIBRARY_PATH="/w/class.1/ee/ee201a/ee201ata/oa/lib/linux_rhel40_64/opt:$LD_LIBRARY_PATH"
+fi
+
+# For OpenAccess Makefiles
+export COMPILER_PATH=/usr
+
+# Append standard library locations
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/lib64:/usr/lib:/lib64:/lib"
+
+# Adding scons (from your previous request)
+# export PATH="$PATH:/w/class.1/ee/ee201a/ee201ata/scons-3.1.2/bin"

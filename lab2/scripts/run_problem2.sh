@@ -18,7 +18,7 @@ LAB2_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
 cd "$LAB2_DIR"
 
 # Default TCL script
-TCL_SCRIPT="tcl_scripts/lab2_problem2.tcl"
+TCL_SCRIPT="lab2_problem2.tcl"
 
 # If argument provided, use it as TCL script
 if [ $# -gt 0 ]; then
@@ -37,7 +37,7 @@ echo ""
 if [ ! -f "$TCL_SCRIPT" ]; then
     echo "Error: TCL script '$TCL_SCRIPT' not found!"
     echo "       Creating from skeleton..."
-    cp tcl_scripts/lab2_skeleton.tcl "$TCL_SCRIPT"
+    cp lab2_skeleton.tcl "$TCL_SCRIPT"
     echo "       Created $TCL_SCRIPT"
     echo ""
 fi
@@ -54,14 +54,8 @@ if [ ! -f "s15850.v" ]; then
     exit 1
 fi
 
-# Check if results directory exists
-if [ ! -d "results" ]; then
-    echo "Creating results directory..."
-    mkdir -p results
-fi
-
 # Source the setup script if it exists
-SETUP_SCRIPT="_setup/new_bash_ee201a_setup"
+SETUP_SCRIPT="new_bash_ee201a_setup"
 if [ -f "$SETUP_SCRIPT" ]; then
     echo "Sourcing setup script: $SETUP_SCRIPT"
     source "$SETUP_SCRIPT"
@@ -77,7 +71,7 @@ if ! command -v genus &> /dev/null; then
     echo "Error: 'genus' command not found in PATH!"
     echo "       Please ensure the setup script is sourced properly"
     echo "       or source it manually:"
-    echo "       source _setup/new_bash_ee201a_setup"
+    echo "       source new_bash_ee201a_setup"
     echo ""
     exit 1
 fi
@@ -97,7 +91,7 @@ if [ $? -eq 0 ]; then
     echo "  Problem 2 synthesis completed successfully!"
     echo "========================================"
     echo ""
-    echo "Check results/ directory for results:"
+    echo "Check current directory for results:"
     echo "  - synth_report_timing.txt"
     echo "  - synth_report_gates.txt"
     echo "  - synth_report_power.txt"

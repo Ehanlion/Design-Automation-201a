@@ -23,7 +23,6 @@ echo "Working directory: $(pwd)"
 
 # Remove Genus synthesis output directories
 rm -rf fv
-rm -rf results
 
 # Remove Genus log files
 rm -f *.log
@@ -56,12 +55,18 @@ rm -f *.rpt
 rm -f *.timing
 rm -f *.power
 
-# Remove synthesized netlists (if in root directory)
+# Remove synthesized netlists
 rm -f *_synth.v
 
-# Remove SDC files (if generated in root directory)
+# Remove SDC files
 rm -f *.sdc
 
-# Note: results/ directory contains all synthesis outputs and will be removed above
+# Remove synthesis report files
+rm -f synth_report_timing.txt
+rm -f synth_report_gates.txt
+rm -f synth_report_power.txt
+
+# Remove problem1 results
+rm -f problem1_results.txt
 
 echo "Cleanup complete!"

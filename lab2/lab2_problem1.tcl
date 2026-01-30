@@ -13,12 +13,12 @@
 #**************************************************/
 
 # Set the input file path
-set input_file "results/wirelength.txt"
+set input_file "wirelength.txt"
 
 # Check if file exists
 if {![file exists $input_file]} {
     puts "Error: File '$input_file' not found!"
-    puts "Please ensure wirelength.txt is in the results/ directory."
+    puts "Please ensure wirelength.txt is in the current directory."
     exit 1
 }
 
@@ -75,7 +75,7 @@ puts "=================================================="
 puts ""
 
 # Optional: Write results to a file
-set output_file "results/problem1_results.txt"
+set output_file "problem1_results.txt"
 set out_fp [open $output_file w]
 puts $out_fp "Lab 2 - Problem 1 Results"
 puts $out_fp "========================="

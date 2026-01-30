@@ -25,23 +25,17 @@ echo "Running TCL script from: $LAB2_DIR"
 echo ""
 
 # Check if wirelength.txt exists
-if [ ! -f "results/wirelength.txt" ]; then
-    echo "Error: wirelength.txt not found in $LAB2_DIR/results"
+if [ ! -f "wirelength.txt" ]; then
+    echo "Error: wirelength.txt not found in $LAB2_DIR"
     echo "Please ensure the file is present."
     exit 1
 fi
 
-# Check if results directory exists
-if [ ! -d "results" ]; then
-    echo "Creating results directory..."
-    mkdir -p results
-fi
-
 # Run the TCL script
-echo "Executing: tclsh tcl_scripts/lab2_problem1.tcl"
+echo "Executing: tclsh lab2_problem1.tcl"
 echo ""
 
-tclsh tcl_scripts/lab2_problem1.tcl
+tclsh lab2_problem1.tcl
 
 # Check exit status
 if [ $? -eq 0 ]; then

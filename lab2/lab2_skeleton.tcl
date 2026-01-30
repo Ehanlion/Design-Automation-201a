@@ -82,15 +82,15 @@ syn_opt
 report_timing -lint
 
 # Generate post-synthesis reports on timing, area, and power estimates
-report_timing > results/synth_report_timing.txt
-report_gates  > results/synth_report_gates.txt
-report_power  > results/synth_report_power.txt
+report_timing > synth_report_timing.txt
+report_gates  > synth_report_gates.txt
+report_power  > synth_report_power.txt
 
 # Output the synthesized netlist to a new Verilog file
-write_hdl > results/${DNAME}_synth.v
+write_hdl > ${DNAME}_synth.v
 
 # Export the design constraints to SDC file
-write_sdc >  results/${DNAME}.sdc
+write_sdc >  ${DNAME}.sdc
 
 # Report final timing again to console for user to review
 report_timing -lint -verbose
@@ -98,7 +98,7 @@ report_timing -lint -verbose
 puts \n 
 puts "Synthesis Finished!         "
 puts \n
-puts "Check results/ for synthesis results and reports."
+puts "Check current directory for synthesis results and reports."
 puts \n
  
 # Exit Genus 

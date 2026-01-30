@@ -1,12 +1,12 @@
 #!/bin/bash
 #**************************************************/
 #* UCLA EE 201A -- VLSI Design Automation          */
-#* Lab 2 - Problem 2: Clock Period Optimization   */
+#* Lab 2 - Problem 2A: Clock Period Optimization   */
 #*                                                  */
-#* This script runs Genus synthesis for Problem 2  */
+#* This script runs Genus synthesis for Problem 2A */
 #*                                                  */
-#* Usage: ./scripts/run_problem2.sh [tcl_file]    */
-#*        or: bash scripts/run_problem2.sh        */
+#* Usage: ./scripts/run2A.sh [tcl_file]            */
+#*        or: bash scripts/run2A.sh                */
 #**************************************************/
 
 # Get the directory where this script is located
@@ -18,7 +18,7 @@ LAB2_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
 cd "$LAB2_DIR"
 
 # Default TCL script
-TCL_SCRIPT="lab2_problem2.tcl"
+TCL_SCRIPT="lab2_2A.tcl"
 
 # If argument provided, use it as TCL script
 if [ $# -gt 0 ]; then
@@ -26,7 +26,7 @@ if [ $# -gt 0 ]; then
 fi
 
 echo "========================================"
-echo "  Lab 2 - Problem 2: Clock Period Optimization"
+echo "  Lab 2 - Problem 2A: Clock Period Optimization"
 echo "========================================"
 echo ""
 echo "Working directory: $LAB2_DIR"
@@ -77,7 +77,7 @@ if ! command -v genus &> /dev/null; then
 fi
 
 # Run Genus in batch mode (headless)
-echo "Running Genus synthesis for Problem 2 (this may take a few minutes)..."
+echo "Running Genus synthesis for Problem 2A (this may take a few minutes)..."
 echo ""
 echo "Command: genus -batch -no_gui -files $TCL_SCRIPT"
 echo ""
@@ -88,7 +88,7 @@ genus -batch -no_gui -files "$TCL_SCRIPT"
 if [ $? -eq 0 ]; then
     echo ""
     echo "========================================"
-    echo "  Problem 2 synthesis completed successfully!"
+    echo "  Problem 2A synthesis completed successfully!"
     echo "========================================"
     echo ""
     echo "Check current directory for results:"

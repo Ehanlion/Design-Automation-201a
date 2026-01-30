@@ -83,9 +83,10 @@ echo "Command: genus -batch -no_gui -files $TCL_SCRIPT"
 echo ""
 
 genus -batch -no_gui -files "$TCL_SCRIPT"
+GENUS_EXIT_CODE=$?
 
 # Check exit status
-if [ $? -eq 0 ]; then
+if [ $GENUS_EXIT_CODE -eq 0 ]; then
     echo ""
     echo "========================================"
     echo "  Problem 2A synthesis completed successfully!"
@@ -140,5 +141,14 @@ else
     echo ""
     echo "Check genus.log for details"
     echo ""
-    exit 1
+fi
+
+# Clean up Genus-generated files
+echo "Cleaning up Genus-generated files..."
+rm -f genus.log* genus.cmd* genus_* .genus* .cadence
+echo "Cleanup complete!"
+
+# Exit with the original exit code
+if [ $GENUS_EXIT_CODE -ne 0 ]; then
+    exit $GENUS_EXIT_CODE
 fi

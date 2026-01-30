@@ -56,7 +56,9 @@ elaborate $DESIGN
 # Set clock period
 # EE 201A Lab 2 Problem 2: Modify the clock period constraint to find the best achievable frequency
 # Start with a reasonable value and iteratively reduce until slack ≈ 0
-set clk_period 1000
+
+# Carry over the best clock period from Problem 2A
+set clk_period 460
 
 set clock [define_clock -period ${clk_period} -name ${clkpin} [clock_ports]]
 
@@ -77,9 +79,35 @@ check_design -unresolved
 report_timing -lint
 
 # Synthesize design and map it to technology library
-syn_generic
-syn_map
-syn_opt
+
+# OLD SYNTHESIS COMMANDS
+# Replace these with new synthesis commands
+# syn_generic
+# syn_map
+# syn_opt
+
+# New synthesis commands
+# 1. Allow flattening of hierarchy
+# Removes module boundaries, allowing the tool to optimize logic across blocks.
+set_db auto_ungroup both
+
+# 2. Synthesize to generic gates with High Effort
+# Tells the tool to explore more architectural variations.
+syn_generic -effort high
+
+# 3. Map to technology library with High Effort
+syn_map -effort high
+
+# 4. Optimizaton with Retiming and High Effort
+# -retime: Moves registers through logic to balance path delays (critical for speed).
+# -effort high: Spend more CPU time finding the best solution.
+# removed retime option because of errors
+syn_opt -effort high -incremental
+
+# 5. Incremental Optimization (The "TNS" Hint)
+# Once WNS (Worst Negative Slack) is stuck, this pass helps reduce 
+# Total Negative Slack (TNS) on other paths.
+# syn_opt -incremental
 
 # List possible timing problems after synthesis
 report_timing -lint

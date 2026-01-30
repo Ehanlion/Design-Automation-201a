@@ -48,3 +48,8 @@ else
     echo ""
     exit 1
 fi
+
+# Clean up Genus-generated files
+echo "Cleaning up Genus-generated files..."
+rm -f genus.log* genus.cmd* genus_* .genus* .cadence
+echo "Cleanup complete!"

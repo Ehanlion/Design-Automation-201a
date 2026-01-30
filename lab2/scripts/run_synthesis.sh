@@ -19,7 +19,7 @@ LAB2_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
 cd "$LAB2_DIR"
 
 # Default TCL script
-TCL_SCRIPT="lab2_skeleton.tcl"
+TCL_SCRIPT="lab2_base.tcl"
 
 # If argument provided, use it as TCL script
 if [ $# -gt 0 ]; then

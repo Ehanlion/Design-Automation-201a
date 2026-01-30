@@ -5,9 +5,9 @@
 #**************************************************/
 #* Script for Cadence Genus synthesis             */
 #*                                                */
-#* To run: genus < lab2_skeleton.tcl              */
+#* To run: genus < lab2_base.tcl              */
 #* Or open genus by running: genus                */
-#* Then run: source lab2_skeleton.tcl             */
+#* Then run: source lab2_base.tcl             */
 #*                                                */
 #**************************************************/
 

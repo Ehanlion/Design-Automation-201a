@@ -3,7 +3,7 @@
 #* UCLA EE 201A -- VLSI Design Automation          */
 #* Lab 2 - Generate Benchmark Outputs               */
 #*                                                  */
-#* This script runs lab2_skeleton.tcl as-is        */
+#* This script runs lab2_base.tcl as-is        */
 #* and routes outputs to _benchmark directory      */
 #*                                                  */
 #* Usage: ./scripts/run_benchmark.sh               */
@@ -26,8 +26,8 @@ echo "Working directory: $LAB2_DIR"
 echo ""
 
 # Check if skeleton TCL script exists
-if [ ! -f "lab2_skeleton.tcl" ]; then
-    echo "Error: lab2_skeleton.tcl not found!"
+if [ ! -f "lab2_base.tcl" ]; then
+    echo "Error: lab2_base.tcl not found!"
     exit 1
 fi
 
@@ -78,13 +78,13 @@ if ! command -v genus &> /dev/null; then
 fi
 
 # Run Genus in batch mode (headless) with skeleton TCL
-echo "Running Genus synthesis with lab2_skeleton.tcl..."
+echo "Running Genus synthesis with lab2_base.tcl..."
 echo "This may take a few minutes..."
 echo ""
-echo "Command: genus -batch -no_gui -files lab2_skeleton.tcl"
+echo "Command: genus -batch -no_gui -files lab2_base.tcl"
 echo ""
 
-genus -batch -no_gui -files lab2_skeleton.tcl
+genus -batch -no_gui -files lab2_base.tcl
 
 # Check exit status
 if [ $? -eq 0 ]; then

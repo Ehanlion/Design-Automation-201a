@@ -37,7 +37,7 @@ echo ""
 if [ ! -f "$TCL_SCRIPT" ]; then
     echo "Error: TCL script '$TCL_SCRIPT' not found!"
     echo "       Creating from skeleton..."
-    cp lab2_skeleton.tcl "$TCL_SCRIPT"
+    cp lab2_base.tcl "$TCL_SCRIPT"
     echo "       Created $TCL_SCRIPT"
     echo ""
 fi

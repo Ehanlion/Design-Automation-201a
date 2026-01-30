@@ -80,49 +80,46 @@ report_timing -lint
 
 # Synthesize design and map it to technology library
 
-# ============================================================
-# OPTIMIZATION SETTINGS FOR TIMING IMPROVEMENT
-# ============================================================
+# OLD SYNTHESIS COMMANDS
+# Replace these with new synthesis commands
+# syn_generic
+# syn_map
+# syn_opt
 
-# 1. Enable automatic ungrouping to allow optimization across hierarchy
+# New synthesis commands
+# 1. Allow flattening of hierarchy
+# Removes module boundaries, allowing the tool to optimize logic across blocks.
 set_db auto_ungroup both
 
-# 2. Enable Total Negative Slack (TNS) optimization
-# This tells the tool to optimize ALL failing paths, not just the worst one
+# OPTIMIZATION: Tell the tool to fix ALL failing paths (TNS), not just the worst one (WNS).
 set_db tns_opto true
 
-# 3. Set high effort levels for all synthesis stages
-# This makes the tool explore more optimization possibilities
-set_db syn_generic_effort high
-set_db syn_map_effort high
-set_db syn_opt_effort high
-
-# ============================================================
-# SYNTHESIS FLOW WITH HIGH EFFORT
-# ============================================================
-
-# Stage 1: Generic synthesis with high effort
+# 2. Synthesize to generic gates with High Effort
+# Tells the tool to explore more architectural variations.
 syn_generic -effort high
 
-# Stage 2: Technology mapping with high effort
+# 3. Map to technology library with High Effort
 syn_map -effort high
 
-# Stage 3: Initial optimization pass - focus on worst negative slack (WNS)
+# 4. Enable TNS-oriented optimization if supported
+#set tns_status [catch {set_db tns_opto true} tns_err]
+if {${tns_status}} {
+    puts "Warning: tns_opto not supported: ${tns_err}"
+}
+
+# Broaden the set of near-critical paths to optimize (if supported)
+# set group_status [catch {group_path -name tns_focus -from [all_registers] -to [all_registers] -critical_range 200 -weight 10} group_err]
+if {${group_status}} {
+    puts "Warning: group_path not supported: ${group_err}"
+}
+
+# 5. High-effort optimization to improve WNS
+# Focus first on the critical path (WNS) before TNS cleanup.
 syn_opt -effort high
 
-# Stage 4: Incremental optimization - focus on total negative slack (TNS)
-# This pass helps reduce TNS after WNS is improved
+# 6. Incremental Optimization (The "TNS" Hint)
+# Once WNS is close, this pass helps reduce Total Negative Slack (TNS).
 syn_opt -effort high -incremental
-
-# Stage 5: Additional optimization pass for fine-tuning
-# Multiple passes can help when the design is near its limit
-syn_opt -effort high
-
-# NOTE: If slack still doesn't improve, try:
-# 1. Reduce clock period slightly (e.g., 455 ps), then optimize to see if you can recover
-# 2. Check Genus log output to verify effort levels are being applied
-# 3. Try different effort combinations (e.g., medium for syn_generic, high for syn_opt)
-# 4. Consider using syn_opt -no_incr for non-incremental optimization
 
 # List possible timing problems after synthesis
 report_timing -lint

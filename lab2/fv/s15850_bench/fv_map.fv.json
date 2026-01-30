@@ -871,20 +871,20 @@
 "object":"/designs/s15850_bench/instances_seq/g391_reg",
 "type":"instance"},
 {"index": "1", 
- "date": "Fri Jan 30 06:25:43 UTC 2026",
- "seconds": 1769754343.760401,
+ "date": "Fri Jan 30 07:17:20 UTC 2026",
+ "seconds": 1769757440.848477,
  "netlist": "fv/s15850_bench/fv_map.v.gz", 
  "netlist_exists": "1", 
  "netlist_normalize": "/w/home.19/ee/ugrad/palatics/ee201a/lab2/fv/s15850_bench/fv_map.v.gz", 
- "netlist_mtime": "1769754342", 
- "netlist_timestamp": "Fri Jan 30 06:25:42 UTC 2026", 
+ "netlist_mtime": "1769757439", 
+ "netlist_timestamp": "Fri Jan 30 07:17:19 UTC 2026", 
  "netlist_size": "7811", 
- "netlist_cksum": "2058497355", 
+ "netlist_cksum": "2794841002", 
  "design_name": "s15850_bench", 
  "synth_workdir": "/w/home.19/ee/ugrad/palatics/ee201a/lab2", 
  "synthesis_command":"",
  "current_label": "fv_map", 
  "previous_label": "rtl", 
- "write_verif_file_runtime": 1.154514 
+ "write_verif_file_runtime": 1.159819 
  }
 ]

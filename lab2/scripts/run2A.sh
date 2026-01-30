@@ -143,10 +143,10 @@ else
     echo ""
 fi
 
-# Clean up Genus-generated files
+# Clean up Genus-generated files (preserving log files)
 echo "Cleaning up Genus-generated files..."
-rm -f genus.log* genus.cmd* genus_* .genus* .cadence
-echo "Cleanup complete!"
+rm -f genus.cmd* genus_* .genus* .cadence
+echo "Cleanup complete! (Log files preserved)"
 
 # Exit with the original exit code
 if [ $GENUS_EXIT_CODE -ne 0 ]; then

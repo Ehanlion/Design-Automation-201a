@@ -91,12 +91,46 @@ if [ $? -eq 0 ]; then
     echo "  Problem 2B synthesis completed successfully!"
     echo "========================================"
     echo ""
-    echo "Check current directory for results:"
-    echo "  - synth_report_timing.txt"
-    echo "  - synth_report_gates.txt"
-    echo "  - synth_report_power.txt"
-    echo "  - s15850_synth.v"
-    echo "  - s15850.sdc"
+    
+    # Create results directory if it doesn't exist
+    RESULTS_DIR="$LAB2_DIR/results"
+    mkdir -p "$RESULTS_DIR"
+    
+    # Copy result files to results directory with prefix
+    PREFIX="2B_"
+    echo "Copying results to $RESULTS_DIR/ with prefix '$PREFIX'..."
+    
+    if [ -f "synth_report_timing.txt" ]; then
+        cp "synth_report_timing.txt" "$RESULTS_DIR/${PREFIX}synth_report_timing.txt"
+        rm "synth_report_timing.txt"
+    fi
+    
+    if [ -f "synth_report_gates.txt" ]; then
+        cp "synth_report_gates.txt" "$RESULTS_DIR/${PREFIX}synth_report_gates.txt"
+        rm "synth_report_gates.txt"
+    fi
+    
+    if [ -f "synth_report_power.txt" ]; then
+        cp "synth_report_power.txt" "$RESULTS_DIR/${PREFIX}synth_report_power.txt"
+        rm "synth_report_power.txt"
+    fi
+    
+    if [ -f "s15850_synth.v" ]; then
+        cp "s15850_synth.v" "$RESULTS_DIR/${PREFIX}s15850_synth.v"
+        rm "s15850_synth.v"
+    fi
+    
+    if [ -f "s15850.sdc" ]; then
+        cp "s15850.sdc" "$RESULTS_DIR/${PREFIX}s15850.sdc"
+        rm "s15850.sdc"
+    fi
+    
+    echo "Results saved to $RESULTS_DIR/:"
+    echo "  - ${PREFIX}synth_report_timing.txt"
+    echo "  - ${PREFIX}synth_report_gates.txt"
+    echo "  - ${PREFIX}synth_report_power.txt"
+    echo "  - ${PREFIX}s15850_synth.v"
+    echo "  - ${PREFIX}s15850.sdc"
     echo ""
 else
     echo ""

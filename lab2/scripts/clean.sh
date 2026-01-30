@@ -66,6 +66,9 @@ rm -f synth_report_timing.txt
 rm -f synth_report_gates.txt
 rm -f synth_report_power.txt
 
+# Now remove from the results directory
+rm -rf results/*
+
 # Remove problem1 results
 rm -f problem1_results.txt
 

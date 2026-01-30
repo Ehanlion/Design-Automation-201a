@@ -1,0 +1,4 @@
+# Lab 2, Problem 1 Results
+# Total wires: 200
+AVERAGE_WIRELENGTH: 47.39
+NUMBER_OF_WIRES_OVER_50: 89

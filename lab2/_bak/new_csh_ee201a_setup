@@ -1,20 +1,20 @@
 #!/bin/csh
-# Last updated 02/10/2018 for EE 201A Winter 2021
+# Last updated 01/26/2026 for EE 201A Winter 2026
 #
 # Source this script if you are using csh for EE 201A on eeapps.seas.ucla.edu as follows:
-# $ source csh_ee201a_setup
+# $ source new_csh_ee201a_setup
 
 # For Cadence 
-source /w/apps3/Cadence/INNOVUS161/SETUP
-source /w/apps3/Cadence/GENUS191/SETUP
+source /w/apps3/Cadence/INNOVUS211/SETUP
+source /w/apps3/Cadence/GENUS211/SETUP
 
 #Gives Permission denied.
 # source /w/apps3/Mentor/Calibre/v2016.2_26.21/SETUP 
 # This works instead v v v
-source /w/apps3/Mentor/Calibre/v2021.1_16.10/SETUP
+source /w/apps3/Mentor/Calibre/2024.3_16.10/SETUP
 
 # Add Conformal bin
-setenv PATH "/w/apps3/Cadence/CONFRML171/bin:{$PATH}"
+setenv PATH "/w/apps3/Cadence/CONFRML241/bin:{$PATH}"
 
 # Append OpenAccess binaries to executable path
 setenv PATH "/w/class.1/ee/ee201a/ee201ata/oa/bin/linux_rhel40_64/opt:{$PATH}"
@@ -34,4 +34,4 @@ setenv COMPILER_PATH /usr
 setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/usr/lib64:/usr/lib:/lib64:/lib
 
 #Adding scons
-setenv PATH ${PATH}:/w/class.1/ee/ee201a/ee201ata/scons-3.1.2/bin
+# setenv PATH ${PATH}:/w/class.1/ee/ee201a/ee201ata/scons-3.1.2/bin

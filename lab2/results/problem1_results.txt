@@ -1,6 +1,0 @@
-Lab 2 - Problem 1 Results
-=========================
-
-Total wires: 200
-Average wirelength: 47.39
-Wires with length > 50: 89

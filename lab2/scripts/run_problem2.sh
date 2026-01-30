@@ -1,13 +1,12 @@
 #!/bin/bash
 #**************************************************/
 #* UCLA EE 201A -- VLSI Design Automation          */
-#* Lab 2 - Run Genus Synthesis (Headless)          */
+#* Lab 2 - Problem 2: Clock Period Optimization   */
 #*                                                  */
-#* This script runs Cadence Genus synthesis        */
-#* in headless mode (no GUI)                       */
+#* This script runs Genus synthesis for Problem 2  */
 #*                                                  */
-#* Usage: ./scripts/run_synthesis.sh [tcl_file]    */
-#*        or: bash scripts/run_synthesis.sh        */
+#* Usage: ./scripts/run_problem2.sh [tcl_file]    */
+#*        or: bash scripts/run_problem2.sh        */
 #**************************************************/
 
 # Get the directory where this script is located
@@ -19,7 +18,7 @@ LAB2_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
 cd "$LAB2_DIR"
 
 # Default TCL script
-TCL_SCRIPT="tcl_scripts/lab2_skeleton.tcl"
+TCL_SCRIPT="tcl_scripts/lab2_problem2.tcl"
 
 # If argument provided, use it as TCL script
 if [ $# -gt 0 ]; then
@@ -27,7 +26,7 @@ if [ $# -gt 0 ]; then
 fi
 
 echo "========================================"
-echo "  Lab 2 - Genus Synthesis"
+echo "  Lab 2 - Problem 2: Clock Period Optimization"
 echo "========================================"
 echo ""
 echo "Working directory: $LAB2_DIR"
@@ -37,7 +36,10 @@ echo ""
 # Check if TCL script exists
 if [ ! -f "$TCL_SCRIPT" ]; then
     echo "Error: TCL script '$TCL_SCRIPT' not found!"
-    exit 1
+    echo "       Creating from skeleton..."
+    cp tcl_scripts/lab2_skeleton.tcl "$TCL_SCRIPT"
+    echo "       Created $TCL_SCRIPT"
+    echo ""
 fi
 
 # Check if library file exists
@@ -81,7 +83,7 @@ if ! command -v genus &> /dev/null; then
 fi
 
 # Run Genus in batch mode (headless)
-echo "Running Genus synthesis (this may take a few minutes)..."
+echo "Running Genus synthesis for Problem 2 (this may take a few minutes)..."
 echo ""
 echo "Command: genus -batch -no_gui -files $TCL_SCRIPT"
 echo ""
@@ -92,7 +94,7 @@ genus -batch -no_gui -files "$TCL_SCRIPT"
 if [ $? -eq 0 ]; then
     echo ""
     echo "========================================"
-    echo "  Synthesis completed successfully!"
+    echo "  Problem 2 synthesis completed successfully!"
     echo "========================================"
     echo ""
     echo "Check results/ directory for results:"

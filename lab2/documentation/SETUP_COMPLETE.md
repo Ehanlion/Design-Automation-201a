@@ -40,7 +40,7 @@
 - **Clean Script:** `scripts/clean.sh` - Removes all generated files
 - **Problem 1 Runner:** `scripts/run_problem1.sh`
 - **Synthesis Runner:** `scripts/run_synthesis.sh`
-- **Setup Scripts:** `scripts/new_bash_ee201a_setup`, `scripts/new_csh_ee201a_setup`
+- **Setup Scripts:** `_setup/new_bash_ee201a_setup`, `_setup/new_csh_ee201a_setup`
 
 ### 5. Documentation ✓
 - **README.md** - Comprehensive guide with:
@@ -56,8 +56,8 @@
 - ✓ `s15850.v` - RTL Verilog design
 - ✓ `NangateOpenCellLibrary_typical.lib` - Technology library
 - ✓ `results/results_submission.txt` - Submission template
-- ✓ `scripts/new_bash_ee201a_setup` - Bash environment setup
-- ✓ `scripts/new_csh_ee201a_setup` - C-shell environment setup
+- ✓ `_setup/new_bash_ee201a_setup` - Bash environment setup
+- ✓ `_setup/new_csh_ee201a_setup` - C-shell environment setup
 
 ## TCL Script Configuration
 

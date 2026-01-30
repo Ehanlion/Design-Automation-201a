@@ -7,9 +7,19 @@
 #*                                                  */
 #* Usage: ./clean.sh                               */
 #*        or: bash clean.sh                        */
+#*                                                  */
+#* Works from scripts/ directory or lab2/ root     */
 #**************************************************/
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Change to the lab2 directory (parent of scripts/)
+LAB2_DIR="$(dirname "$SCRIPT_DIR")"
+cd "$LAB2_DIR" || exit 1
+
 echo "Cleaning Lab 2 generated files..."
+echo "Working directory: $(pwd)"
 
 # Remove Genus synthesis output directories
 rm -rf fv

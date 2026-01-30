@@ -58,7 +58,7 @@ elaborate $DESIGN
 # Start with a reasonable value and iteratively reduce until slack ≈ 0
 
 # Carry over the best clock period from Problem 2A
-set clk_period 460
+set clk_period 495
 
 set clock [define_clock -period ${clk_period} -name ${clkpin} [clock_ports]]
 
@@ -84,39 +84,28 @@ report_timing -lint
 # OPTIMIZATION SETTINGS FOR TIMING IMPROVEMENT
 # ============================================================
 
-# 1. Enable automatic ungrouping to allow optimization across hierarchy
+# ============================================================
+# OPTIMIZATION SETTINGS FOR TIMING IMPROVEMENT
+# ============================================================
+
+# Enable timing-focused optimization
+set_db syn_global_effort high
+set_db syn_opt_effort high
+set_db tns_opto true
 set_db auto_ungroup both
 
-# 2. Enable Total Negative Slack (TNS) optimization
-# This tells the tool to optimize ALL failing paths, not just the worst one
-set_db tns_opto true
-
-# 3. Set high effort levels for all synthesis stages
-# This makes the tool explore more optimization possibilities
-set_db syn_generic_effort high
-set_db syn_map_effort high
-set_db syn_opt_effort high
-
-# ============================================================
-# SYNTHESIS FLOW WITH HIGH EFFORT
-# ============================================================
-
-# Stage 1: Generic synthesis with high effort
+# Stage 1: Generic synthesis with timing awareness
 syn_generic -effort high
 
-# Stage 2: Technology mapping with high effort
+# Stage 2: Technology mapping with timing focus
 syn_map -effort high
 
-# Stage 3: Initial optimization pass - focus on worst negative slack (WNS)
+# Stage 3: FIRST optimization pass (non-incremental to establish baseline)
 syn_opt -effort high
 
-# Stage 4: Incremental optimization - focus on total negative slack (TNS)
-# This pass helps reduce TNS after WNS is improved
+# Stage 4: Additional incremental optimization passes for timing closure
 syn_opt -effort high -incremental
-
-# Stage 5: Additional optimization pass for fine-tuning
-# Multiple passes can help when the design is near its limit
-syn_opt -effort high
+syn_opt -effort high -incremental
 
 # NOTE: If slack still doesn't improve, try:
 # 1. Reduce clock period slightly (e.g., 455 ps), then optimize to see if you can recover

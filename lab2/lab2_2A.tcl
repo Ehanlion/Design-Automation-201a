@@ -56,7 +56,25 @@ elaborate $DESIGN
 # Set clock period
 # EE 201A Lab 2 Problem 2: Modify the clock period constraint to find the best achievable frequency
 # Start with a reasonable value and iteratively reduce until slack ≈ 0
-set clk_period 1000
+# set clk_period NNNN (ps)
+
+# History for modifying clk_period:
+# Period | Slack
+# 1000 365
+# 610 23
+# 605 18
+# 600 33
+# 500 1
+# 495 0
+# 490 1
+# 480 1
+# 470 0
+# 460 0 => 1/T = 1/460 ps = 2.17 GHz
+# 455 -17
+# 450 -20
+# 400 -64
+# 100  -372
+set clk_period 460
 
 set clock [define_clock -period ${clk_period} -name ${clkpin} [clock_ports]]
 

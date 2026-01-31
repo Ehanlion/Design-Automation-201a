@@ -1,0 +1,42 @@
+================================================================================
+  TIMING DEBUG REPORT SUMMARY
+================================================================================
+
+Total Paths Analyzed: 30
+  MET:      30
+  VIOLATED: 0
+
+--------------------------------------------------------------------------------
+Path   Status     Slack (ps)   Startpoint                     Endpoint                      
+--------------------------------------------------------------------------------
+1      MET             0 ps    retime_s6_5_reg/CK             retime_s8_6_reg/D             
+2      MET             0 ps    retime_s6_5_reg/CK             retime_s8_7_reg/D             
+3      MET             1 ps    retime_s3_10_reg/CK            g201_reg/D                    
+4      MET             2 ps    retime_s4_14_reg/CK            retime_s4_14_reg/D            
+5      MET             2 ps    retime_s4_14_reg/CK            retime_s4_15_reg/D            
+6      MET             2 ps    retime_s19_2_reg/CK            retime_s3_5_reg/D             
+7      MET             2 ps    retime_s6_5_reg/CK             retime_s8_9_reg/D             
+8      MET             2 ps    retime_s6_5_reg/CK             retime_s8_8_reg/D             
+9      MET             2 ps    retime_s1_4_reg/CK             g201_reg/D                    
+10     MET             2 ps    retime_s6_5_reg/CK             retime_s8_9_reg/D             
+11     MET             2 ps    retime_s6_5_reg/CK             retime_s8_8_reg/D             
+12     MET             2 ps    retime_s19_2_reg/CK            retime_s3_6_reg/D             
+13     MET             2 ps    retime_s7_2_reg/CK             retime_s8_6_reg/D             
+14     MET             2 ps    retime_s7_2_reg/CK             retime_s8_7_reg/D             
+15     MET             2 ps    retime_s1_2_reg/CK             g201_reg/D                    
+16     MET             2 ps    retime_s6_5_reg/CK             retime_s3_5_reg/D             
+17     MET             2 ps    g1289_reg/CK                   retime_s6_7_reg/D             
+18     MET             3 ps    retime_s4_35_reg/CK            g201_reg/D                    
+19     MET             3 ps    retime_s6_5_reg/CK             retime_s3_6_reg/D             
+20     MET             3 ps    retime_s4_18_reg/CK            retime_s19_2_reg/D            
+21     MET             4 ps    g778_reg/CK                    retime_s5_17_reg/D            
+22     MET             4 ps    retime_s19_2_reg/CK            retime_s8_6_reg/D             
+23     MET             4 ps    retime_s19_2_reg/CK            retime_s8_7_reg/D             
+24     MET             4 ps    retime_s2_2_reg/CK             g201_reg/D                    
+25     MET             4 ps    retime_s7_2_reg/CK             retime_s8_9_reg/D             
+26     MET             4 ps    retime_s7_2_reg/CK             retime_s8_8_reg/D             
+27     MET             4 ps    retime_s7_2_reg/CK             retime_s3_5_reg/D             
+28     MET             5 ps    retime_s6_5_reg/CK             retime_s8_6_reg/D             
+29     MET             5 ps    retime_s7_2_reg/CK             retime_s8_9_reg/D             
+30     MET             5 ps    retime_s6_5_reg/CK             retime_s8_7_reg/D             
+--------------------------------------------------------------------------------

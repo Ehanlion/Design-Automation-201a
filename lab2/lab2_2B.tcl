@@ -59,10 +59,13 @@ elaborate $DESIGN
 
 # Carry over the best clock period from Problem 2A
 # New history for values after optimizations
+# These are just a tracker and optimizations were made while testing values
 # Period | Slack
 # 460 => -18
 # 400 => 1
 # 380 => 0
+# 360 => 0
+# 340 => -45
 set clk_period 360
 
 set clock [define_clock -period ${clk_period} -name ${clkpin} [clock_ports]]
@@ -90,8 +93,8 @@ report_timing -lint
 # ============================================================
 
 # Allow Genus to dissolve hierarchy boundaries to merge logic
+# Optimize all negative slack endpoints.
 set_db auto_ungroup both
-
 set_db tns_opto true
 
 # Set effort levels to high for all stages of synthesis
@@ -100,21 +103,20 @@ set_db syn_map_effort high
 set_db syn_opt_effort high
 set_db retime_effort high
 
+# Standard synthesis from prior skeleton example
 syn_generic
 syn_map
 
-# Create a path group for the clock and weight it higher
-# 'clk_name' should be replaced with your actual clock name
+# Define a new cost group for timing optimization, give a higher weight, and tell synthesis to focus on it.
 define_cost_group -name critical_path -weight 10 -design [get_designs *]
-path_group -from [all_inputs] -to [all_outputs] -group critical_path -name io_paths
 
+# assign paths relating to the clock signal (critical) to the cost group
+path_group -from [all_registers -clock ${clkpin}] -to [all_registers -clock ${clkpin}] -group critical_path -name clock_paths
+
+# Standard simulation
 syn_opt
 retime -min_delay
 syn_opt -incremental
-
-# Notes
-# Retime: reduces delay by moving registers to optimize the clock path
-#         HUGE help, retime with min delay is the reason this is good
 
 # ============================================================
 # END OF OPTIMIZATION SETTINGS FOR TIMING IMPROVEMENT
@@ -125,7 +127,7 @@ report_timing -lint
 
 # Generate post-synthesis reports on timing, area, and power estimates
 report_timing > synth_report_timing.txt
-report_timing -max_slack 0 -nworst 10000 -path_type full_clock -net > synth_report_timing_debug.txt
+report_timing -nworst 10 -max_paths 30 -path_type full_clock -net > synth_report_timing_debug.txt
 report_gates  > synth_report_gates.txt
 report_power  > synth_report_power.txt
 

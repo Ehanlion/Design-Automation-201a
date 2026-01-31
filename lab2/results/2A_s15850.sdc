@@ -1,6 +1,6 @@
 # ####################################################################
 
-#  Created by Genus(TM) Synthesis Solution 21.19-s055_1 on Fri Jan 30 18:57:30 PST 2026
+#  Created by Genus(TM) Synthesis Solution 21.19-s055_1 on Fri Jan 30 18:58:13 PST 2026
 
 # ####################################################################
 
@@ -12,7 +12,7 @@ set_units -time 1000ps
 # Set the current design
 current_design s15850_bench
 
-create_clock -name "blif_clk_net" -period 1.0 -waveform {0.0 0.5} [get_ports blif_clk_net]
+create_clock -name "blif_clk_net" -period 0.46 -waveform {0.0 0.23} [get_ports blif_clk_net]
 set_clock_transition 0.1 [get_clocks blif_clk_net]
 set_clock_gating_check -setup 0.0 
 set_input_delay -clock [get_clocks blif_clk_net] -add_delay 0.0 [get_ports blif_reset_net]

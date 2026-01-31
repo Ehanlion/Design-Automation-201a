@@ -108,17 +108,15 @@ if [ $GENUS_EXIT_CODE -eq 0 ]; then
     
     if [ -f "synth_report_timing_debug.txt" ]; then
         cp "synth_report_timing_debug.txt" "$RESULTS_DIR/${PREFIX}synth_report_timing_debug.txt"
-        # Generate and display summary from debug timing file
+        # Generate summary from debug timing file and write to file
         if command -v python3 &> /dev/null; then
-            echo ""
-            echo "========================================"
-            echo "  Timing Debug Summary"
-            echo "========================================"
+            SUMMARY_FILE="$RESULTS_DIR/${PREFIX}timing_violations_summary.txt"
             python3 "$SCRIPT_DIR/summarize_timing_debug.py" \
-                "$RESULTS_DIR/${PREFIX}synth_report_timing_debug.txt" 2>/dev/null || \
+                "$RESULTS_DIR/${PREFIX}synth_report_timing_debug.txt" \
+                "$SUMMARY_FILE" 2>/dev/null || \
             python3 "$SCRIPT_DIR/summarize_timing_debug.py" \
-                "$RESULTS_DIR/${PREFIX}synth_report_timing_debug.txt"
-            echo ""
+                "$RESULTS_DIR/${PREFIX}synth_report_timing_debug.txt" \
+                "$SUMMARY_FILE"
         else
             echo "  Warning: python3 not found, skipping summary generation"
         fi
@@ -148,6 +146,9 @@ if [ $GENUS_EXIT_CODE -eq 0 ]; then
     echo "Results saved to $RESULTS_DIR/:"
     echo "  - ${PREFIX}synth_report_timing.txt"
     echo "  - ${PREFIX}synth_report_timing_debug.txt"
+    if [ -f "$RESULTS_DIR/${PREFIX}timing_violations_summary.txt" ]; then
+        echo "  - ${PREFIX}timing_violations_summary.txt"
+    fi
     echo "  - ${PREFIX}synth_report_gates.txt"
     echo "  - ${PREFIX}synth_report_power.txt"
     echo "  - ${PREFIX}s15850_synth.v"

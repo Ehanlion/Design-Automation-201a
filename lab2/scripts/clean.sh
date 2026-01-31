@@ -67,6 +67,10 @@ rm -f synth_report_timing_debug.txt
 rm -f synth_report_gates.txt
 rm -f synth_report_power.txt
 
+# Remove timing violation summary files
+rm -f timing_violations_summary.txt
+rm -f *_timing_violations_summary.txt
+
 # Now remove from the results directory
 rm -rf results/*
 

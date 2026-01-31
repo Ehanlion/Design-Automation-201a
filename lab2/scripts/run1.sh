@@ -32,10 +32,10 @@ if [ ! -f "wirelength.txt" ]; then
 fi
 
 # Run the TCL script
-echo "Executing: tclsh lab2_problem1.tcl"
+echo "Executing: tclsh lab2_1.tcl"
 echo ""
 
-tclsh lab2_problem1.tcl
+tclsh lab2_1.tcl
 
 # Check exit status
 if [ $? -eq 0 ]; then

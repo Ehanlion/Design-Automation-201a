@@ -64,3 +64,39 @@ else
 fi
 
 echo ""
+echo "Extracting values from TCL files for Problem 2..."
+
+# Check if TCL files exist
+if [ ! -f "lab2_2A.tcl" ]; then
+    echo "Warning: lab2_2A.tcl not found in $LAB2_DIR"
+    echo "Skipping Problem 2A update."
+else
+    # Extract clock period from lab2_2A.tcl (BEST_CLOCK_PERIOD)
+    BEST_CLOCK_PERIOD=$(grep "^set clk_period" lab2_2A.tcl | awk '{print $3}')
+    
+    if [ -n "$BEST_CLOCK_PERIOD" ]; then
+        echo "  BEST_CLOCK_PERIOD: $BEST_CLOCK_PERIOD"
+        # Update BEST_CLOCK_PERIOD line (preserving format)
+        sed -i "s/    A) BEST_CLOCK_PERIOD:.*/    A) BEST_CLOCK_PERIOD: $BEST_CLOCK_PERIOD/" results_submission.txt
+    else
+        echo "Warning: Could not extract BEST_CLOCK_PERIOD from lab2_2A.tcl"
+    fi
+fi
+
+if [ ! -f "lab2_2B.tcl" ]; then
+    echo "Warning: lab2_2B.tcl not found in $LAB2_DIR"
+    echo "Skipping Problem 2B update."
+else
+    # Extract clock period from lab2_2B.tcl (NEW_BEST_CLOCK_PERIOD)
+    NEW_BEST_CLOCK_PERIOD=$(grep "^set clk_period" lab2_2B.tcl | awk '{print $3}')
+    
+    if [ -n "$NEW_BEST_CLOCK_PERIOD" ]; then
+        echo "  NEW_BEST_CLOCK_PERIOD: $NEW_BEST_CLOCK_PERIOD"
+        # Update NEW_BEST_CLOCK_PERIOD line (preserving format)
+        sed -i "s/    B) NEW_BEST_CLOCK_PERIOD:.*/    B) NEW_BEST_CLOCK_PERIOD: $NEW_BEST_CLOCK_PERIOD/" results_submission.txt
+    else
+        echo "Warning: Could not extract NEW_BEST_CLOCK_PERIOD from lab2_2B.tcl"
+    fi
+fi
+
+echo ""

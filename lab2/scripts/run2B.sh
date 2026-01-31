@@ -111,10 +111,10 @@ if [ $GENUS_EXIT_CODE -eq 0 ]; then
         # Generate summary from debug timing file and write to file
         if command -v python3 &> /dev/null; then
             SUMMARY_FILE="$RESULTS_DIR/${PREFIX}timing_violations_summary.txt"
-            python3 "$SCRIPT_DIR/summarize_timing_debug.py" \
+            python3 "$SCRIPT_DIR/python/summarize_timing_debug.py" \
                 "$RESULTS_DIR/${PREFIX}synth_report_timing_debug.txt" \
                 "$SUMMARY_FILE" 2>/dev/null || \
-            python3 "$SCRIPT_DIR/summarize_timing_debug.py" \
+            python3 "$SCRIPT_DIR/python/summarize_timing_debug.py" \
                 "$RESULTS_DIR/${PREFIX}synth_report_timing_debug.txt" \
                 "$SUMMARY_FILE"
         else

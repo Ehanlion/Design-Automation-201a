@@ -1,15 +1,15 @@
 # UCLA EE 201A -- VLSI Design Automation
 # Winter 2021
-# Lab 2 Problem 3: Area-Delay Tradeoffs & Power Optimization
+# Lab 2 Problem 2: Clock Period Optimization
 
 #**************************************************/
 #* Script for Cadence Genus synthesis             */
 #*                                                */
-#* To run: genus < lab2_problem3.tcl              */
+#* To run: genus < lab2_problem2.tcl              */
 #* Or open genus by running: genus                */
-#* Then run: source lab2_problem3.tcl             */
+#* Then run: source lab2_problem2.tcl             */
 #*                                                */
-#* Or use: bash scripts/run_problem3.sh          */
+#* Or use: bash scripts/run_problem2.sh          */
 #*                                                */
 #**************************************************/
 
@@ -49,14 +49,9 @@ read_hdl -v2001 ${hdl_files}
 # Initialize design from design RTL
 elaborate $DESIGN
 
-#**************************************************/
-
-# Apply design constraints for logic synthesis -- define clock period, slew rate, relative block I/O delays, etc. Here, we've only set timing constraints, with no area or power constraints listed.
-
-# Set clock period
-# EE 201A Lab 2 Problem 3A: Modify clock period to explore area-delay tradeoffs
-# EE 201A Lab 2 Problem 3B: Set clock period to 1000 ps (required for power optimization)
-set clk_period 1000
+# For clock period, automatically copy value pairs for plotting after iterations
+# No History tracking here
+set clk_period 260
 
 set clock [define_clock -period ${clk_period} -name ${clkpin} [clock_ports]]
 
@@ -70,15 +65,6 @@ dc::set_clock_transition .1 ${clkpin}
 
 #**************************************************/
 
-# Problem 3B: Add power constraints and optimization here
-# Example (uncomment and modify as needed):
-# set_db max_dynamic_power 0.0
-# set_db max_leakage_power 0.0
-# set_db syn_opt_power_effort high
-# set_db retiming true
-
-#**************************************************/
-
 # Check for any issues
 check_design -unresolved
 
@@ -86,12 +72,42 @@ check_design -unresolved
 report_timing -lint
 
 # Synthesize design and map it to technology library
+
+# ============================================================
+# OPTIMIZATION SETTINGS FOR TIMING IMPROVEMENT
+# Copied optimizations from 2B
+# Don't change, just increase the period until slack is 200ps
+# ============================================================
+
+# Allow Genus to dissolve hierarchy boundaries to merge logic
+# Optimize all negative slack endpoints.
+set_db auto_ungroup both
+set_db tns_opto true
+
+# Set effort levels to high for all stages of synthesis
+set_db syn_generic_effort high
+set_db syn_map_effort high
+set_db syn_opt_effort high
+set_db retime_effort high
+
+# Standard synthesis from prior skeleton example
 syn_generic
 syn_map
-syn_opt
 
-# Problem 3B: Try power-aware optimization (uncomment if needed):
-# syn_opt -power
+# Define a new cost group for timing optimization, give a higher weight, and tell synthesis to focus on it.
+define_cost_group -name critical_path -weight 10 -design [get_designs *]
+
+# assign paths relating to the clock signal (critical) to the cost group
+path_group -from [all_registers -clock ${clkpin}] -to [all_registers -clock ${clkpin}] -group critical_path -name clock_paths
+
+# Standard simulation
+syn_opt
+retime -min_delay
+syn_opt -incremental
+
+# ============================================================
+# END OF OPTIMIZATION SETTINGS FOR TIMING IMPROVEMENT
+# ============================================================
 
 # List possible timing problems after synthesis
 report_timing -lint

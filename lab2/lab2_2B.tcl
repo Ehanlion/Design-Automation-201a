@@ -58,7 +58,12 @@ elaborate $DESIGN
 # Start with a reasonable value and iteratively reduce until slack ≈ 0
 
 # Carry over the best clock period from Problem 2A
-set clk_period 495
+# New history for values after optimizations
+# Period | Slack
+# 460 => -18
+# 400 => 1
+# 380 => 0
+set clk_period 360
 
 set clock [define_clock -period ${clk_period} -name ${clkpin} [clock_ports]]
 
@@ -84,40 +89,43 @@ report_timing -lint
 # OPTIMIZATION SETTINGS FOR TIMING IMPROVEMENT
 # ============================================================
 
-# ============================================================
-# OPTIMIZATION SETTINGS FOR TIMING IMPROVEMENT
-# ============================================================
-
-# Enable timing-focused optimization
-set_db syn_global_effort high
-set_db syn_opt_effort high
-set_db tns_opto true
+# Allow Genus to dissolve hierarchy boundaries to merge logic
 set_db auto_ungroup both
 
-# Stage 1: Generic synthesis with timing awareness
-syn_generic -effort high
+set_db tns_opto true
 
-# Stage 2: Technology mapping with timing focus
-syn_map -effort high
+# Set effort levels to high for all stages of synthesis
+set_db syn_generic_effort high
+set_db syn_map_effort high
+set_db syn_opt_effort high
+set_db retime_effort high
 
-# Stage 3: FIRST optimization pass (non-incremental to establish baseline)
-syn_opt -effort high
+syn_generic
+syn_map
 
-# Stage 4: Additional incremental optimization passes for timing closure
-syn_opt -effort high -incremental
-syn_opt -effort high -incremental
+# Create a path group for the clock and weight it higher
+# 'clk_name' should be replaced with your actual clock name
+define_cost_group -name critical_path -weight 10 -design [get_designs *]
+path_group -from [all_inputs] -to [all_outputs] -group critical_path -name io_paths
 
-# NOTE: If slack still doesn't improve, try:
-# 1. Reduce clock period slightly (e.g., 455 ps), then optimize to see if you can recover
-# 2. Check Genus log output to verify effort levels are being applied
-# 3. Try different effort combinations (e.g., medium for syn_generic, high for syn_opt)
-# 4. Consider using syn_opt -no_incr for non-incremental optimization
+syn_opt
+retime -min_delay
+syn_opt -incremental
+
+# Notes
+# Retime: reduces delay by moving registers to optimize the clock path
+#         HUGE help, retime with min delay is the reason this is good
+
+# ============================================================
+# END OF OPTIMIZATION SETTINGS FOR TIMING IMPROVEMENT
+# ============================================================
 
 # List possible timing problems after synthesis
 report_timing -lint
 
 # Generate post-synthesis reports on timing, area, and power estimates
 report_timing > synth_report_timing.txt
+report_timing -max_slack 0 -nworst 10000 -path_type full_clock -net > synth_report_timing_debug.txt
 report_gates  > synth_report_gates.txt
 report_power  > synth_report_power.txt
 

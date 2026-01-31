@@ -74,7 +74,7 @@ elaborate $DESIGN
 # 450 -20
 # 400 -64
 # 100  -372
-set clk_period 495
+set clk_period 460
 
 set clock [define_clock -period ${clk_period} -name ${clkpin} [clock_ports]]
 

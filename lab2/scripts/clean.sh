@@ -63,6 +63,7 @@ rm -f *.sdc
 
 # Remove synthesis report files
 rm -f synth_report_timing.txt
+rm -f synth_report_timing_debug.txt
 rm -f synth_report_gates.txt
 rm -f synth_report_power.txt
 

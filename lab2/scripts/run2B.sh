@@ -106,6 +106,25 @@ if [ $GENUS_EXIT_CODE -eq 0 ]; then
         rm "synth_report_timing.txt"
     fi
     
+    if [ -f "synth_report_timing_debug.txt" ]; then
+        cp "synth_report_timing_debug.txt" "$RESULTS_DIR/${PREFIX}synth_report_timing_debug.txt"
+        # Generate and display summary from debug timing file
+        if command -v python3 &> /dev/null; then
+            echo ""
+            echo "========================================"
+            echo "  Timing Debug Summary"
+            echo "========================================"
+            python3 "$SCRIPT_DIR/summarize_timing_debug.py" \
+                "$RESULTS_DIR/${PREFIX}synth_report_timing_debug.txt" 2>/dev/null || \
+            python3 "$SCRIPT_DIR/summarize_timing_debug.py" \
+                "$RESULTS_DIR/${PREFIX}synth_report_timing_debug.txt"
+            echo ""
+        else
+            echo "  Warning: python3 not found, skipping summary generation"
+        fi
+        rm "synth_report_timing_debug.txt"
+    fi
+    
     if [ -f "synth_report_gates.txt" ]; then
         cp "synth_report_gates.txt" "$RESULTS_DIR/${PREFIX}synth_report_gates.txt"
         rm "synth_report_gates.txt"
@@ -128,6 +147,7 @@ if [ $GENUS_EXIT_CODE -eq 0 ]; then
     
     echo "Results saved to $RESULTS_DIR/:"
     echo "  - ${PREFIX}synth_report_timing.txt"
+    echo "  - ${PREFIX}synth_report_timing_debug.txt"
     echo "  - ${PREFIX}synth_report_gates.txt"
     echo "  - ${PREFIX}synth_report_power.txt"
     echo "  - ${PREFIX}s15850_synth.v"
@@ -145,7 +165,7 @@ fi
 
 # Clean up Genus-generated files (preserving log files)
 echo "Cleaning up Genus-generated files..."
-rm -f genus.cmd* genus_* .genus* .cadence
+rm -f genus.cmd* genus_* .genus* .cadence genus.log*
 echo "Cleanup complete! (Log files preserved)"
 
 # Exit with the original exit code

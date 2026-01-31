@@ -85,6 +85,11 @@ echo ""
 genus -batch -no_gui -files "$TCL_SCRIPT"
 GENUS_EXIT_CODE=$?
 
+# Create results directory if it doesn't exist (needed for log copying even on failure)
+RESULTS_DIR="$LAB2_DIR/results"
+mkdir -p "$RESULTS_DIR"
+PREFIX="3A_"
+
 # Check exit status
 if [ $GENUS_EXIT_CODE -eq 0 ]; then
     echo ""
@@ -93,12 +98,7 @@ if [ $GENUS_EXIT_CODE -eq 0 ]; then
     echo "========================================"
     echo ""
     
-    # Create results directory if it doesn't exist
-    RESULTS_DIR="$LAB2_DIR/results"
-    mkdir -p "$RESULTS_DIR"
-    
     # Copy result files to results directory with prefix
-    PREFIX="3A_"
     echo "Copying results to $RESULTS_DIR/ with prefix '$PREFIX'..."
     
     if [ -f "synth_report_timing.txt" ]; then
@@ -143,10 +143,16 @@ else
     echo ""
 fi
 
-# Clean up Genus-generated files (preserving log files)
+# Copy genus.log to results directory with prefix before cleanup
+if [ -f "genus.log" ]; then
+    cp "genus.log" "$RESULTS_DIR/${PREFIX}genus.log"
+    echo "Copied genus.log to $RESULTS_DIR/${PREFIX}genus.log"
+fi
+
+# Clean up Genus-generated files
 echo "Cleaning up Genus-generated files..."
-rm -f genus.cmd* genus_* .genus* .cadence
-echo "Cleanup complete! (Log files preserved)"
+rm -f genus.cmd* genus_* .genus* .cadence genus.log*
+echo "Cleanup complete!"
 
 # Exit with the original exit code
 if [ $GENUS_EXIT_CODE -ne 0 ]; then

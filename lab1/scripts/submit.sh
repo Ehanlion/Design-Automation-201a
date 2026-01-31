@@ -31,6 +31,12 @@ SUBMIT_PATH="/w/class.1/ee/ee201o/ee201ot2/submission/lab1/"
 echo "Submitting to: $SUBMIT_PATH"
 echo "Tar file: $TAR_FILE"
 
+# Create submission directory if it doesn't exist
+if [ ! -d "$SUBMIT_PATH" ]; then
+    echo "Creating submission directory: $SUBMIT_PATH"
+    mkdir -p "$SUBMIT_PATH"
+fi
+
 # Ensure tar file has correct permissions before copying
 chmod go+rx "$TAR_FILE"
 

@@ -49,7 +49,7 @@ else
     exit 1
 fi
 
-# Clean up Genus-generated files (preserving log files)
+# Clean up Genus-generated files
 echo "Cleaning up Genus-generated files..."
-rm -f genus.cmd* genus_* .genus* .cadence
-echo "Cleanup complete! (Log files preserved)"
+rm -f genus.cmd* genus_* .genus* .cadence genus.log*
+echo "Cleanup complete!"

@@ -106,7 +106,7 @@ if [ $? -eq 0 ]; then
     FILES_COPIED=0
     for file in "${OUTPUT_FILES[@]}"; do
         if [ -f "$file" ]; then
-            cp "$file" "$BENCHMARK_DIR/"
+            mv "$file" "$BENCHMARK_DIR/"
             echo "  ✓ Copied $file"
             ((FILES_COPIED++))
         else
@@ -135,6 +135,11 @@ if [ $? -eq 0 ]; then
         fi
     done
     echo ""
+    
+    # Clean up Genus-generated files
+    echo "Cleaning up Genus-generated files..."
+    rm -f genus.cmd* genus_* .genus* .cadence genus.log*
+    echo "Cleanup complete!"
 else
     echo ""
     echo "========================================"
@@ -143,5 +148,11 @@ else
     echo ""
     echo "Check genus.log for details"
     echo ""
+    
+    # Clean up Genus-generated files even on failure
+    echo "Cleaning up Genus-generated files..."
+    rm -f genus.cmd* genus_* .genus* .cadence genus.log*
+    echo "Cleanup complete!"
+    
     exit 1
 fi

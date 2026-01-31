@@ -11,3 +11,5 @@ NangateLib
 DesignLib/
 lib.defs
 *.tstamp
+.st_stamp*
+.nfs*

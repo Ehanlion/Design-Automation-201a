@@ -62,18 +62,5 @@ echo "========================================"
 echo ""
 echo "Generated plots are located in: plotting/"
 echo ""
-echo "To view the plots:"
-echo "  1. area_vs_delay_plot.html - Single metric (Area vs Period)"
-echo "  2. synthesis_metrics_plot.html - Multiple metrics comparison"
-echo ""
-echo "Open these files in a web browser to view interactive plots."
-echo ""
-
-# Optionally, try to open the plots in browser (if running on a system with a browser)
-if command -v xdg-open &> /dev/null; then
-    echo "Tip: Run 'xdg-open plotting/area_vs_delay_plot.html' to view in browser"
-elif command -v open &> /dev/null; then
-    echo "Tip: Run 'open plotting/area_vs_delay_plot.html' to view in browser"
-fi
 
 echo ""

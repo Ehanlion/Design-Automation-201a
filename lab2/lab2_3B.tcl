@@ -54,8 +54,7 @@ elaborate $DESIGN
 # Apply design constraints for logic synthesis -- define clock period, slew rate, relative block I/O delays, etc. Here, we've only set timing constraints, with no area or power constraints listed.
 
 # Set clock period
-# EE 201A Lab 2 Problem 3A: Modify clock period to explore area-delay tradeoffs
-# EE 201A Lab 2 Problem 3B: Set clock period to 1000 ps (required for power optimization)
+# For 3B, do not adjust this at ALL, leave it at 1000 ps
 set clk_period 1000
 
 set clock [define_clock -period ${clk_period} -name ${clkpin} [clock_ports]]
@@ -68,30 +67,39 @@ set_output_delay -clock ${clkpin} 0 [vfind /designs/${DESIGN}/ports -port *]
 # Set clock slew rate (rise/fall time)
 dc::set_clock_transition .1 ${clkpin}
 
-#**************************************************/
-
-# Problem 3B: Add power constraints and optimization here
-# Example (uncomment and modify as needed):
-# set_db max_dynamic_power 0.0
-# set_db max_leakage_power 0.0
-# set_db syn_opt_power_effort high
-# set_db retiming true
-
-#**************************************************/
-
 # Check for any issues
 check_design -unresolved
 
 # List possible timing problems prior to synthesis
 report_timing -lint
 
+# ============================================================
+# OPTIMIZATION SETTINGS FOR POWER OPTIMIZATION
+# ============================================================
+
+# Allow Genus to dissolve hierarchy boundaries to merge logic
+# Optimize all negative slack endpoints.
+set_db auto_ungroup both
+set_db tns_opto true
+
+# Set effort levels to high for all stages of synthesis
+set_db syn_generic_effort high
+set_db syn_map_effort high
+set_db syn_opt_effort high
+set_db retime_effort high
+
 # Synthesize design and map it to technology library
 syn_generic
 syn_map
-syn_opt
 
-# Problem 3B: Try power-aware optimization (uncomment if needed):
-# syn_opt -power
+# Add optimizations for retime from 2B
+syn_opt
+retime -min_delay
+syn_opt -incremental
+
+# ============================================================
+# END OF OPTIMIZATION SETTINGS FOR POWER OPTIMIZATION
+# ============================================================
 
 # List possible timing problems after synthesis
 report_timing -lint

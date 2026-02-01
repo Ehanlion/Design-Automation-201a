@@ -72,7 +72,12 @@ rm -f timing_violations_summary.txt
 rm -f *_timing_violations_summary.txt
 
 # Now remove from the results directory
-rm -rf results/*
+# Avoid deleting the results directory & plotting data csv files
+rm -rf results/*.txt
+rm -rf results/*.v
+rm -rf results/*.sdc
+rm -rf results/*.log
+rm -rf results/*.cmd
 
 # Remove problem1 results
 rm -f problem1_results.txt

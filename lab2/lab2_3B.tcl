@@ -31,6 +31,13 @@ set_db init_lib_search_path {./}
 # Set filename of the Liberty file for our Nangate library
 set_db library NangateOpenCellLibrary_typical.lib
 
+# ============================================================
+# New Flow for Elaboration with Clock Gating Insertion
+# ============================================================
+
+# Enable/disable RTL clock-gating.
+set_db lp_insert_clock_gating true
+
 # Set list of all necessary RTL files written in HDLs like Verilog or VHDL, separated by spaces
 set hdl_files {s15850.v}
 
@@ -48,6 +55,10 @@ read_hdl -v2001 ${hdl_files}
 
 # Initialize design from design RTL
 elaborate $DESIGN
+
+# ============================================================
+# End of Clock Gating
+# ============================================================
 
 #**************************************************/
 
@@ -77,24 +88,43 @@ report_timing -lint
 # OPTIMIZATION SETTINGS FOR POWER OPTIMIZATION
 # ============================================================
 
-# Allow Genus to dissolve hierarchy boundaries to merge logic
-# Optimize all negative slack endpoints.
-set_db auto_ungroup both
+# The goal with this part:
+# Spend excess slack and use it to buy power savings
+# We have plenty of slack, so we can afford to spend it
+# Now we focus on power > timing, and area can fluctuate
+
+# Set leakage optimization to high
+set_db lp_multi_vt_optimization_effort high
+
+# Set min and max flops for clock gating
+# these are design level not root level
+# Dial these values in: 32 | 8
+set_db [current_design] .lp_clock_gating_max_flops 32
+set_db [current_design] .lp_clock_gating_min_flops 8
+
+# Apply forces to power to get genus to optimize down for power
+# Usage: set_max_dynamic_power <float> <string> [<design>]
+# Usage: set_max_leakage_power <float> <string> [<design>]
+set_db [current_design] .max_dynamic_power 0.0
+set_db [current_design] .max_leakage_power 0.0
+
+# Allow Genus to dissolve hierarchy boundaries
+set_db auto_ungroup area
 set_db tns_opto true
 
-# Set effort levels to high for all stages of synthesis
+# Set effort levels to high
 set_db syn_generic_effort high
 set_db syn_map_effort high
 set_db syn_opt_effort high
 set_db retime_effort high
 
-# Synthesize design and map it to technology library
+# Synthesize
 syn_generic
 syn_map
-
-# Add optimizations for retime from 2B
 syn_opt
-retime -min_delay
+
+# Incremental leakage optimization
+retime -min_area
 syn_opt -incremental
 
 # ============================================================
@@ -118,11 +148,7 @@ write_sdc >  ${DNAME}.sdc
 # Report final timing again to console for user to review
 report_timing -lint -verbose
 
-puts \n 
-puts "Synthesis Finished!         "
-puts \n
-puts "Check current directory for synthesis results and reports."
-puts \n
- 
+puts "Synthesis Finished!"
+
 # Exit Genus 
 # quit

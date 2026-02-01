@@ -96,6 +96,38 @@ extract_slack_from_timing() {
     fi
 }
 
+# Function to extract clock gating cell count from gates report
+extract_clock_gating_count() {
+    local file="$1"
+    if [ ! -f "$file" ]; then
+        echo "0"
+        return
+    fi
+    # Look for "clock_gating_integrated_cell" line and extract instances count
+    local count=$(grep -E "^\s*clock_gating_integrated_cell" "$file" | awk '{print $2}')
+    if [ -z "$count" ]; then
+        echo "0"
+    else
+        echo "$count"
+    fi
+}
+
+# Function to extract total area from gates report
+extract_total_area() {
+    local file="$1"
+    if [ ! -f "$file" ]; then
+        echo "N/A"
+        return
+    fi
+    # Look for the last "total" line (the summary total at the bottom)
+    local area=$(grep -E "^\s*total\s+" "$file" | tail -1 | awk '{print $3}')
+    if [ -z "$area" ]; then
+        echo "N/A"
+    else
+        echo "$area"
+    fi
+}
+
 # Extract data for each configuration
 echo "Extracting power and timing data..."
 echo ""
@@ -104,6 +136,7 @@ echo ""
 BENCHMARK_POWER="$LAB2_DIR/_benchmark/synth_report_power.txt"
 BENCHMARK_TIMING="$LAB2_DIR/_benchmark/synth_report_timing.txt"
 BENCHMARK_SDC="$LAB2_DIR/_benchmark/s15850.sdc"
+BENCHMARK_GATES="$LAB2_DIR/_benchmark/synth_report_gates.txt"
 BENCHMARK_POWER_VALS=$(extract_power_values "$BENCHMARK_POWER")
 BENCHMARK_LEAKAGE=$(echo $BENCHMARK_POWER_VALS | awk '{print $1}')
 BENCHMARK_INTERNAL=$(echo $BENCHMARK_POWER_VALS | awk '{print $2}')
@@ -114,11 +147,14 @@ if [ "$BENCHMARK_PERIOD" = "N/A" ]; then
     BENCHMARK_PERIOD=$(extract_clock_period_from_sdc "$BENCHMARK_SDC")
 fi
 BENCHMARK_SLACK=$(extract_slack_from_timing "$BENCHMARK_TIMING")
+BENCHMARK_CLK_GATING=$(extract_clock_gating_count "$BENCHMARK_GATES")
+BENCHMARK_AREA=$(extract_total_area "$BENCHMARK_GATES")
 
 # 3A
 POWER_3A="$LAB2_DIR/results/3A_synth_report_power.txt"
 TIMING_3A="$LAB2_DIR/results/3A_synth_report_timing.txt"
 SDC_3A="$LAB2_DIR/results/3A_s15850.sdc"
+GATES_3A="$LAB2_DIR/results/3A_synth_report_gates.txt"
 POWER_VALS_3A=$(extract_power_values "$POWER_3A")
 LEAKAGE_3A=$(echo $POWER_VALS_3A | awk '{print $1}')
 INTERNAL_3A=$(echo $POWER_VALS_3A | awk '{print $2}')
@@ -129,11 +165,14 @@ if [ "$PERIOD_3A" = "N/A" ]; then
     PERIOD_3A=$(extract_clock_period_from_sdc "$SDC_3A")
 fi
 SLACK_3A=$(extract_slack_from_timing "$TIMING_3A")
+CLK_GATING_3A=$(extract_clock_gating_count "$GATES_3A")
+AREA_3A=$(extract_total_area "$GATES_3A")
 
 # 3B
 POWER_3B="$LAB2_DIR/results/3B_synth_report_power.txt"
 TIMING_3B="$LAB2_DIR/results/3B_synth_report_timing.txt"
 SDC_3B="$LAB2_DIR/results/3B_s15850.sdc"
+GATES_3B="$LAB2_DIR/results/3B_synth_report_gates.txt"
 POWER_VALS_3B=$(extract_power_values "$POWER_3B")
 LEAKAGE_3B=$(echo $POWER_VALS_3B | awk '{print $1}')
 INTERNAL_3B=$(echo $POWER_VALS_3B | awk '{print $2}')
@@ -144,8 +183,29 @@ if [ "$PERIOD_3B" = "N/A" ]; then
     PERIOD_3B=$(extract_clock_period_from_sdc "$SDC_3B")
 fi
 SLACK_3B=$(extract_slack_from_timing "$TIMING_3B")
+CLK_GATING_3B=$(extract_clock_gating_count "$GATES_3B")
+AREA_3B=$(extract_total_area "$GATES_3B")
 
 # Print summary header
+echo "Area and Clock Gating Summary"
+echo "=================================================================================="
+printf "%-12s %20s %20s\n" \
+    "Config" "Clock Gating Cells" "Total Area"
+echo "=================================================================================="
+
+# Print data for each configuration
+printf "%-12s %20s %20s\n" \
+    "Benchmark" "$BENCHMARK_CLK_GATING" "$BENCHMARK_AREA"
+
+printf "%-12s %20s %20s\n" \
+    "Problem 3A" "$CLK_GATING_3A" "$AREA_3A"
+
+printf "%-12s %20s %20s\n" \
+    "Problem 3B" "$CLK_GATING_3B" "$AREA_3B"
+
+echo "=================================================================================="
+echo ""
+
 echo "Power Comparison Summary"
 echo "=========================================================================================================="
 printf "%-12s %12s %12s %15s %15s %15s %15s %12s\n" \
@@ -195,12 +255,15 @@ if [ $MISSING_VALS -eq 1 ]; then
     echo "  Benchmark:"
     echo "    - $BENCHMARK_POWER"
     echo "    - $BENCHMARK_TIMING or $BENCHMARK_SDC"
+    echo "    - $BENCHMARK_GATES"
     echo "  Problem 3A:"
     echo "    - $POWER_3A"
     echo "    - $TIMING_3A or $SDC_3A"
+    echo "    - $GATES_3A"
     echo "  Problem 3B:"
     echo "    - $POWER_3B"
     echo "    - $TIMING_3B or $SDC_3B"
+    echo "    - $GATES_3B"
     exit 1
 fi
 

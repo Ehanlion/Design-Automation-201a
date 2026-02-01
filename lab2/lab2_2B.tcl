@@ -115,12 +115,22 @@ path_group -from [all_registers -clock ${clkpin}] -to [all_registers -clock ${cl
 
 # Standard simulation
 syn_opt
-retime -min_delay
+
+# Usage: retime [-prepare] [-min_area] [-min_delay] [-effort <string>] [-clock <clock>+] [<module|design>+]
+retime -min_area
+
+# Incremental optimization
 syn_opt -incremental
 
 # ============================================================
 # END OF OPTIMIZATION SETTINGS FOR TIMING IMPROVEMENT
 # ============================================================
+
+# The goal with this part:
+# Spend area and power to gain as much timing
+# Do this with retime and low-vt cells
+# Prioritize timing > power & area
+# This is reflected in the plotting as well!
 
 # List possible timing problems after synthesis
 report_timing -lint

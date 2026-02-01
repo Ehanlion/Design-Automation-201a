@@ -93,9 +93,6 @@ report_timing -lint
 # We have plenty of slack, so we can afford to spend it
 # Now we focus on power > timing, and area can fluctuate
 
-# Set leakage optimization to high
-set_db lp_multi_vt_optimization_effort high
-
 # Set min and max flops for clock gating
 # these are design level not root level
 # Dial these values in: 32 | 8
@@ -113,8 +110,8 @@ set_db auto_ungroup area
 set_db tns_opto true
 
 # Set effort levels to high
-set_db syn_generic_effort high
-set_db syn_map_effort high
+set_db syn_generic_effort medium
+set_db syn_map_effort medium
 set_db syn_opt_effort high
 set_db retime_effort high
 

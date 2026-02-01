@@ -1,6 +1,6 @@
 # ####################################################################
 
-#  Created by Genus(TM) Synthesis Solution 21.19-s055_1 on Sat Jan 31 15:52:52 PST 2026
+#  Created by Genus(TM) Synthesis Solution 21.19-s055_1 on Sat Jan 31 16:35:36 PST 2026
 
 # ####################################################################
 
@@ -12,43 +12,65 @@ set_units -time 1000ps
 # Set the current design
 current_design s15850_bench
 
-create_clock -name "blif_clk_net" -period 1.06 -waveform {0.0 0.53} [get_ports blif_clk_net]
+create_clock -name "blif_clk_net" -period 0.395 -waveform {0.0 0.1975} [get_ports blif_clk_net]
 set_clock_transition 0.1 [get_clocks blif_clk_net]
 group_path -weight 10.000000 -name critical_path -from [list \
   [get_cells g875_reg]  \
   [get_cells g1289_reg]  \
   [get_cells g869_reg]  \
-  [get_cells g108_reg]  \
-  [get_cells g1223_reg]  \
-  [get_cells g1227_reg]  \
-  [get_cells g1218_reg]  \
   [get_cells g382_reg]  \
   [get_cells g1231_reg]  \
-  [get_cells g1618_reg]  \
-  [get_cells g1630_reg]  \
+  [get_cells g758_reg]  \
+  [get_cells g762_reg]  \
+  [get_cells g778_reg]  \
+  [get_cells g549_reg]  \
   [get_cells g1627_reg]  \
-  [get_cells g1624_reg]  \
-  [get_cells g1621_reg]  \
   [get_cells g1615_reg]  \
-  [get_cells g1636_reg]  \
-  [get_cells g1633_reg] ] -to [list \
+  [get_cells g1630_reg]  \
+  [get_cells g1633_reg]  \
+  [get_cells g1621_reg]  \
+  [get_cells g1386_reg]  \
+  [get_cells g1374_reg]  \
+  [get_cells g192_reg]  \
+  [get_cells g248_reg]  \
+  [get_cells g1365_reg]  \
+  [get_cells g1368_reg]  \
+  [get_cells g1371_reg]  \
+  [get_cells g1377_reg]  \
+  [get_cells g1624_reg]  \
+  [get_cells g1380_reg]  \
+  [get_cells g207_reg]  \
+  [get_cells g1383_reg]  \
+  [get_cells g1618_reg]  \
+  [get_cells g1636_reg] ] -to [list \
   [get_cells g875_reg]  \
   [get_cells g1289_reg]  \
   [get_cells g869_reg]  \
-  [get_cells g108_reg]  \
-  [get_cells g1223_reg]  \
-  [get_cells g1227_reg]  \
-  [get_cells g1218_reg]  \
   [get_cells g382_reg]  \
   [get_cells g1231_reg]  \
-  [get_cells g1618_reg]  \
-  [get_cells g1630_reg]  \
+  [get_cells g758_reg]  \
+  [get_cells g762_reg]  \
+  [get_cells g778_reg]  \
+  [get_cells g549_reg]  \
   [get_cells g1627_reg]  \
-  [get_cells g1624_reg]  \
-  [get_cells g1621_reg]  \
   [get_cells g1615_reg]  \
-  [get_cells g1636_reg]  \
-  [get_cells g1633_reg] ]
+  [get_cells g1630_reg]  \
+  [get_cells g1633_reg]  \
+  [get_cells g1621_reg]  \
+  [get_cells g1386_reg]  \
+  [get_cells g1374_reg]  \
+  [get_cells g192_reg]  \
+  [get_cells g248_reg]  \
+  [get_cells g1365_reg]  \
+  [get_cells g1368_reg]  \
+  [get_cells g1371_reg]  \
+  [get_cells g1377_reg]  \
+  [get_cells g1624_reg]  \
+  [get_cells g1380_reg]  \
+  [get_cells g207_reg]  \
+  [get_cells g1383_reg]  \
+  [get_cells g1618_reg]  \
+  [get_cells g1636_reg] ]
 set_clock_gating_check -setup 0.0 
 set_input_delay -clock [get_clocks blif_clk_net] -add_delay 0.0 [get_ports blif_reset_net]
 set_input_delay -clock [get_clocks blif_clk_net] -add_delay 0.0 [get_ports g18]

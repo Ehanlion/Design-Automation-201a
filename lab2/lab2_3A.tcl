@@ -51,7 +51,7 @@ elaborate $DESIGN
 
 # For clock period, automatically copy value pairs for plotting after iterations
 # No History tracking here
-set clk_period 260
+set clk_period 360
 
 set clock [define_clock -period ${clk_period} -name ${clkpin} [clock_ports]]
 

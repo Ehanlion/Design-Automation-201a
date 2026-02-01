@@ -21,7 +21,7 @@
 #include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonTechObserver.h"
 
 // HTML histogram writer class
-#include "HTMLHistogramWriter.h"
+#include "../plotting/HTMLHistogramWriter.h"
 
 // Terminal plotting code (inlined to remove dependency on TerminalPlotter.h)
 

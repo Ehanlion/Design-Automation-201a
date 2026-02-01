@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Area vs Clock Period - Lab 2 Problem 3A</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #333; margin-bottom: 30px; }
+        canvas { background: white; }
+        .info { margin-top: 20px; padding: 15px; background: #f9f9f9; border-radius: 4px; }
+        .info p { margin: 5px 0; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Design Area vs Clock Period</h1>
+        <canvas id="lineChart" width="400" height="200"></canvas>
+        <div class="info">
+            <p><strong>Data Points:</strong> 51</p>
+            <p><strong>Datasets:</strong> 1</p>
+        </div>
+    </div>
+    <script>
+        const ctx = document.getElementById('lineChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [100, 150, 200, 250, 300, 305, 310, 315, 320, 325, 330, 335, 340, 345, 350, 355, 360, 365, 370, 375, 385, 395, 400, 430, 460, 480, 500, 530, 560, 600, 630, 660, 700, 760, 790, 795, 800, 805, 810, 815, 820, 825, 830, 840, 850, 860, 870, 880, 910, 960, 1060],
+                datasets: [
+                    {
+                        label: 'Total Area',
+                        data: [1194.87, 1212.43, 1323.08, 1251.26, 1302.6, 1179.18, 1250.73, 1269.35, 1168.54, 1125.98, 1235.3, 1333.72, 1238.5, 1204.18, 1245.41, 1255.79, 1330.27, 1162.69, 1102.04, 1160.56, 1192.74, 1168.8, 1149.65, 1026.49, 1028.09, 1012.4, 1044.85, 972.23, 969.304, 977.018, 976.22, 951.748, 960.526, 948.822, 971.964, 971.964, 971.964, 971.964, 973.028, 973.028, 973.028, 973.028, 972.762, 972.762, 943.502, 952.812, 996.436, 961.59, 990.052, 983.136, 963.984],
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        tension: 0.1,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Design Area vs Clock Period',
+                        font: { size: 16 }
+                    },
+                    tooltip: {
+                        enabled: true,
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Clock Period (ps)',
+                            font: { size: 14 }
+                        },
+                        grid: {
+                            display: true,
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Total Area (μm²)',
+                            font: { size: 14 }
+                        },
+                        grid: {
+                            display: true,
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

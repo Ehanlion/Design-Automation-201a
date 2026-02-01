@@ -21,10 +21,10 @@
 #include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonTechObserver.h"
 
 // Terminal plotting class
-#include "TerminalPlotter.h"
+#include "../plotting/TerminalPlotter.h"
 
 // HTML histogram writer class
-#include "HTMLHistogramWriter.h"
+#include "../plotting/HTMLHistogramWriter.h"
 
 using namespace std;
 using namespace oa;

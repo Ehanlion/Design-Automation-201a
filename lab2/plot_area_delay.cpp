@@ -182,7 +182,7 @@ bool generateAreaVsPeriodPlotFiltered(const string& csvFile, const string& outpu
 	// Configure plot
 	CSVLinePlotConfig config;
 	config.pageTitle = "Period vs Area (Filtered: slack >= 0 and < 200) - Lab 2 Problem 3A";
-	config.chartTitle = "Period vs Area (Filtered: slack >= 0 and < 200)";
+	config.chartTitle = "Period vs Area";
 	config.xAxisLabel = "Clock Period (ps)";
 	config.yAxisLabel = "Total Area (μm²)";
 	config.xColumnIndex = 0;  // period column

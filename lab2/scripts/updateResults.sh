@@ -100,3 +100,75 @@ else
 fi
 
 echo ""
+echo "Extracting power values from power reports for Problem 3B..."
+
+# Initialize variables to track lowest values
+LOWEST_TOTAL_POWER=""
+LOWEST_LEAKAGE_PWR=""
+LOWEST_DYNAMIC_PWR=""
+
+# Array of power report files to check
+POWER_REPORTS=("results/2A_synth_report_power.txt" "results/2B_synth_report_power.txt" "results/3A_synth_report_power.txt" "results/3B_synth_report_power.txt")
+
+# Process each power report
+for POWER_REPORT in "${POWER_REPORTS[@]}"; do
+    if [ -f "$POWER_REPORT" ]; then
+        echo "  Processing $POWER_REPORT..."
+        
+        # Extract values from the Subtotal line (line 16)
+        # Format: Subtotal <leakage> <internal> <switching> <total> <row%>
+        SUBTOTAL_LINE=$(sed -n '16p' "$POWER_REPORT")
+        
+        if [ -n "$SUBTOTAL_LINE" ]; then
+            # Extract values using awk (columns 2, 3, 4, 5)
+            LEAKAGE=$(echo "$SUBTOTAL_LINE" | awk '{print $2}')
+            INTERNAL=$(echo "$SUBTOTAL_LINE" | awk '{print $3}')
+            SWITCHING=$(echo "$SUBTOTAL_LINE" | awk '{print $4}')
+            TOTAL=$(echo "$SUBTOTAL_LINE" | awk '{print $5}')
+            
+            echo "    Total: $TOTAL, Leakage: $LEAKAGE, Switching: $SWITCHING"
+            
+            # Update lowest values (compare as floating point numbers using awk)
+            if [ -z "$LOWEST_TOTAL_POWER" ] || [ "$(echo "$TOTAL $LOWEST_TOTAL_POWER" | awk '{print ($1 < $2)}')" -eq 1 ]; then
+                LOWEST_TOTAL_POWER="$TOTAL"
+            fi
+            
+            if [ -z "$LOWEST_LEAKAGE_PWR" ] || [ "$(echo "$LEAKAGE $LOWEST_LEAKAGE_PWR" | awk '{print ($1 < $2)}')" -eq 1 ]; then
+                LOWEST_LEAKAGE_PWR="$LEAKAGE"
+            fi
+            
+            if [ -z "$LOWEST_DYNAMIC_PWR" ] || [ "$(echo "$SWITCHING $LOWEST_DYNAMIC_PWR" | awk '{print ($1 < $2)}')" -eq 1 ]; then
+                LOWEST_DYNAMIC_PWR="$SWITCHING"
+            fi
+        else
+            echo "Warning: Could not find Subtotal line in $POWER_REPORT"
+        fi
+    else
+        echo "Warning: $POWER_REPORT not found, skipping..."
+    fi
+done
+
+# Update results_submission.txt if values were extracted
+if [ -n "$LOWEST_TOTAL_POWER" ] && [ -n "$LOWEST_LEAKAGE_PWR" ] && [ -n "$LOWEST_DYNAMIC_PWR" ]; then
+    echo ""
+    echo "Lowest power values found:"
+    echo "  LOWEST_TOTAL_POWER: $LOWEST_TOTAL_POWER"
+    echo "  LOWEST_LEAKAGE_PWR: $LOWEST_LEAKAGE_PWR"
+    echo "  LOWEST_DYNAMIC_PWR: $LOWEST_DYNAMIC_PWR"
+    
+    # Update results_submission.txt (preserving format)
+    sed -i "s/    B) LOWEST_TOTAL_POWER:.*/    B) LOWEST_TOTAL_POWER: $LOWEST_TOTAL_POWER/" results_submission.txt
+    sed -i "s/    B) LOWEST_LEAKAGE_PWR:.*/    B) LOWEST_LEAKAGE_PWR: $LOWEST_LEAKAGE_PWR/" results_submission.txt
+    sed -i "s/    B) LOWEST_DYNAMIC_PWR:.*/    B) LOWEST_DYNAMIC_PWR: $LOWEST_DYNAMIC_PWR/" results_submission.txt
+    
+    echo ""
+    echo "Problem 3B power values updated successfully!"
+else
+    echo ""
+    echo "Warning: Could not extract all power values"
+    echo "  LOWEST_TOTAL_POWER: '$LOWEST_TOTAL_POWER'"
+    echo "  LOWEST_LEAKAGE_PWR: '$LOWEST_LEAKAGE_PWR'"
+    echo "  LOWEST_DYNAMIC_PWR: '$LOWEST_DYNAMIC_PWR'"
+fi
+
+echo ""

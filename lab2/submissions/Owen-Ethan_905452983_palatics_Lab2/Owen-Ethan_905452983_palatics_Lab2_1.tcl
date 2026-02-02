@@ -1,0 +1,66 @@
+#!/usr/bin/tclsh
+
+# Set the input file path
+set input_file "wirelength.txt"
+
+# Check if file exists
+if {![file exists $input_file]} {
+    puts "Error: File '$input_file' not found!"
+    exit 1
+}
+
+# Open and read the wirelength file
+set fp [open $input_file r]
+set wirelengths [list]
+
+# Read each line and store in list
+while {[gets $fp line] >= 0} {
+    if {[string trim $line] ne ""} {
+        lappend wirelengths [string trim $line]
+    }
+}
+close $fp
+
+# Get total count
+set count [llength $wirelengths]
+
+# Check if we have data
+if {$count == 0} {
+    puts "Error: $input_file is empty!"
+    exit 1
+}
+
+# Calculate average wirelength
+set sum 0.0
+foreach wl $wirelengths {
+    set sum [expr {$sum + $wl}]
+}
+set avg [expr {$sum / $count}]
+
+# Count wires with length > 50
+set count_over_50 0
+foreach wl $wirelengths {
+    if {$wl > 50} {
+        incr count_over_50
+    }
+}
+
+# Print results
+puts ""
+puts "  Lab 2 - Problem 1: Wirelength Analysis Results"
+puts "  Total number of wires:            $count"
+puts "  Average wirelength:               $avg"
+puts "  Number of wires with length > 50: $count_over_50"
+puts ""
+
+# Optional: Write results to a file
+set output_file "problem1_results.txt"
+set out_fp [open $output_file w]
+puts $out_fp "# Lab 2, Problem 1 Results"
+puts $out_fp "# Total wires: $count"
+puts $out_fp "AVERAGE_WIRELENGTH: $avg"
+puts $out_fp "NUMBER_OF_WIRES_OVER_50: $count_over_50"
+close $out_fp
+
+puts "Results to: $output_file"
+puts ""

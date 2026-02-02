@@ -1,15 +1,15 @@
 # UCLA EE 201A -- VLSI Design Automation
 # Winter 2021
-# Lab 2 Problem 3: Area-Delay Tradeoffs & Power Optimization
+# Lab 2 Problem 2: Clock Period Optimization
 
 #**************************************************/
 #* Script for Cadence Genus synthesis             */
 #*                                                */
-#* To run: genus < lab2_problem3.tcl              */
+#* To run: genus < lab2_problem2.tcl              */
 #* Or open genus by running: genus                */
-#* Then run: source lab2_problem3.tcl             */
+#* Then run: source lab2_problem2.tcl             */
 #*                                                */
-#* Or use: bash scripts/run_problem3.sh          */
+#* Or use: bash scripts/run_problem2.sh          */
 #*                                                */
 #**************************************************/
 
@@ -31,13 +31,6 @@ set_db init_lib_search_path {./}
 # Set filename of the Liberty file for our Nangate library
 set_db library NangateOpenCellLibrary_typical.lib
 
-# ============================================================
-# New Flow for Elaboration with Clock Gating Insertion
-# ============================================================
-
-# Enable RTL clock-gating
-set_db lp_insert_clock_gating true
-
 # Set list of all necessary RTL files written in HDLs like Verilog or VHDL, separated by spaces
 set hdl_files {s15850.v}
 
@@ -56,17 +49,24 @@ read_hdl -v2001 ${hdl_files}
 # Initialize design from design RTL
 elaborate $DESIGN
 
-# ============================================================
-# End of Clock Gating
-# ============================================================
-
 #**************************************************/
 
 # Apply design constraints for logic synthesis -- define clock period, slew rate, relative block I/O delays, etc. Here, we've only set timing constraints, with no area or power constraints listed.
 
 # Set clock period
-# For 3B, do not adjust this at ALL, leave it at 1000 ps
-set clk_period 1000
+# EE 201A Lab 2 Problem 2: Modify the clock period constraint to find the best achievable frequency
+# Start with a reasonable value and iteratively reduce until slack ≈ 0
+
+# Carry over the best clock period from Problem 2A
+# New history for values after optimizations
+# These are just a tracker and optimizations were made while testing values
+# Period | Slack
+# 460 => -18
+# 400 => 1
+# 380 => 0
+# 360 => 0
+# 340 => -45
+set clk_period 360
 
 set clock [define_clock -period ${clk_period} -name ${clkpin} [clock_ports]]
 
@@ -78,81 +78,66 @@ set_output_delay -clock ${clkpin} 0 [vfind /designs/${DESIGN}/ports -port *]
 # Set clock slew rate (rise/fall time)
 dc::set_clock_transition .1 ${clkpin}
 
+#**************************************************/
+
 # Check for any issues
 check_design -unresolved
 
 # List possible timing problems prior to synthesis
 report_timing -lint
 
+# Synthesize design and map it to technology library
+
 # ============================================================
-# OPTIMIZATION SETTINGS FOR POWER OPTIMIZATION
+# OPTIMIZATION SETTINGS FOR TIMING IMPROVEMENT
 # ============================================================
 
-# The goal with this part:
-# Spend excess slack and use it to buy power savings
-# We have plenty of slack, so we can afford to spend it
-# Now we focus on power > timing, and area can fluctuate
-
-# Enable clock gating
-set_db lp_clock_gating_hierarchical true
-
-# Set min and max flops for clock gating
-# these are design level not root level
-# Lowering min_flops to 1 for maximum clock gating
-# set_db [current_design] .lp_clock_gating_max_flops 256
-set_db [current_design] .lp_clock_gating_min_flops 8
-
-# Allow Genus to dissolve hierarchy boundaries aggressively
-set_db auto_ungroup area
+# Allow Genus to dissolve hierarchy boundaries to merge logic
+# Optimize all negative slack endpoints.
+set_db auto_ungroup both
 set_db tns_opto true
 
-# Set effort levels to high for better power optimization
-# Need to set generic/map to low to avoid massive resizing for high power
-# Need to set opt to medium to keep optimization clean
-# Need to set retime to medium to keep retime clean
-set_db syn_generic_effort low
-set_db syn_map_effort low
+# Set effort levels to high for all stages of synthesis
+set_db syn_generic_effort high
+set_db syn_map_effort high
 set_db syn_opt_effort high
-set_db retime_effort low
+set_db retime_effort high
 
-# Enable additional power optimization settings
-# MUST set this BEFORE max_dynamic_power and max_leakage_power
-# Prioritize dynamic power more (ratio closer to 1 = more dynamic power focus)
-set_db opt_leakage_to_dynamic_ratio 0
-
-# Apply forces to power to get genus to optimize down for power
-set_db [current_design] .max_dynamic_power 0.0
-set_db [current_design] .max_leakage_power 0.0
-
-# Retime for minimum area (correlates with lower power)
-# This made a huge difference in power reduction
-retime -prepare
-
-# Synthesize with high effort and focus on area/power trade-off
+# Standard synthesis from prior skeleton example
 syn_generic
 syn_map
 
-# Initial optimization
+# Define a new cost group for timing optimization, give a higher weight, and tell synthesis to focus on it.
+define_cost_group -name critical_path -weight 10 -design [get_designs *]
+
+# assign paths relating to the clock signal (critical) to the cost group
+path_group -from [all_registers -clock ${clkpin}] -to [all_registers -clock ${clkpin}] -group critical_path -name clock_paths
+
+# Standard simulation
 syn_opt
 
-# Perform retime -> synthesis passes to drive down power
-retime -min_area
-syn_opt -incremental
+# Usage: retime [-prepare] [-min_area] [-min_delay] [-effort <string>] [-clock <clock>+] [<module|design>+]
+retime -min_delay
 
-# Run a second time to further reduce power
-# Running more than this has no returns, so just do this one as the final pass
-retime -min_area
+# Incremental optimization
 syn_opt -incremental
 
 # ============================================================
-# END OF OPTIMIZATION SETTINGS FOR POWER OPTIMIZATION
+# END OF OPTIMIZATION SETTINGS FOR TIMING IMPROVEMENT
 # ============================================================
+
+# The goal with this part:
+# Spend area and power to gain as much timing
+# Do this with retime and low-vt cells
+# Prioritize timing > power & area
+# This is reflected in the plotting as well!
 
 # List possible timing problems after synthesis
 report_timing -lint
 
 # Generate post-synthesis reports on timing, area, and power estimates
 report_timing > synth_report_timing.txt
+report_timing -nworst 10 -max_paths 30 -path_type full_clock -net > synth_report_timing_debug.txt
 report_gates  > synth_report_gates.txt
 report_power  > synth_report_power.txt
 
@@ -165,7 +150,8 @@ write_sdc >  ${DNAME}.sdc
 # Report final timing again to console for user to review
 report_timing -lint -verbose
 
-puts "Synthesis Finished!"
-
+puts "Synthesis Finished!         "
+puts "Check current directory for synthesis results and reports."
+ 
 # Exit Genus 
 # quit

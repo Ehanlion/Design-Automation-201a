@@ -117,7 +117,7 @@ path_group -from [all_registers -clock ${clkpin}] -to [all_registers -clock ${cl
 syn_opt
 
 # Usage: retime [-prepare] [-min_area] [-min_delay] [-effort <string>] [-clock <clock>+] [<module|design>+]
-retime -min_area
+retime -min_delay
 
 # Incremental optimization
 syn_opt -incremental
@@ -150,11 +150,8 @@ write_sdc >  ${DNAME}.sdc
 # Report final timing again to console for user to review
 report_timing -lint -verbose
 
-puts \n 
 puts "Synthesis Finished!         "
-puts \n
 puts "Check current directory for synthesis results and reports."
-puts \n
  
 # Exit Genus 
 # quit

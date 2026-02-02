@@ -35,7 +35,7 @@ set_db library NangateOpenCellLibrary_typical.lib
 # New Flow for Elaboration with Clock Gating Insertion
 # ============================================================
 
-# Enable/disable RTL clock-gating.
+# Enable RTL clock-gating
 set_db lp_insert_clock_gating true
 
 # Set list of all necessary RTL files written in HDLs like Verilog or VHDL, separated by spaces
@@ -93,34 +93,54 @@ report_timing -lint
 # We have plenty of slack, so we can afford to spend it
 # Now we focus on power > timing, and area can fluctuate
 
+# Enable clock gating
+set_db lp_clock_gating_hierarchical true
+
 # Set min and max flops for clock gating
 # these are design level not root level
-# Dial these values in: 32 | 8
-set_db [current_design] .lp_clock_gating_max_flops 32
+# Lowering min_flops to 1 for maximum clock gating
+# set_db [current_design] .lp_clock_gating_max_flops 256
 set_db [current_design] .lp_clock_gating_min_flops 8
 
+# Allow Genus to dissolve hierarchy boundaries aggressively
+set_db auto_ungroup none
+set_db tns_opto true
+
+# Set effort levels to high for better power optimization
+# Need to set generic/map to low to avoid massive resizing for high power
+# Need to set opt to medium to keep optimization clean
+# Need to set retime to medium to keep retime clean
+set_db syn_generic_effort low
+set_db syn_map_effort low
+set_db syn_opt_effort high
+set_db retime_effort low
+
+# Enable additional power optimization settings
+# MUST set this BEFORE max_dynamic_power and max_leakage_power
+# Prioritize dynamic power more (ratio closer to 1 = more dynamic power focus)
+set_db opt_leakage_to_dynamic_ratio 0
+
 # Apply forces to power to get genus to optimize down for power
-# Usage: set_max_dynamic_power <float> <string> [<design>]
-# Usage: set_max_leakage_power <float> <string> [<design>]
 set_db [current_design] .max_dynamic_power 0.0
 set_db [current_design] .max_leakage_power 0.0
 
-# Allow Genus to dissolve hierarchy boundaries
-set_db auto_ungroup area
-set_db tns_opto true
+# Retime for minimum area (correlates with lower power)
+# This made a huge difference in power reduction
+retime -prepare
 
-# Set effort levels to high
-set_db syn_generic_effort medium
-set_db syn_map_effort medium
-set_db syn_opt_effort high
-set_db retime_effort high
-
-# Synthesize
+# Synthesize with high effort and focus on area/power trade-off
 syn_generic
 syn_map
+
+# Initial optimization
 syn_opt
 
-# Incremental leakage optimization
+# Perform retime -> synthesis passes to drive down power
+retime -min_area
+syn_opt -incremental
+
+# Run a second time to further reduce power
+# Running more than this has no returns, so just do this one as the final pass
 retime -min_area
 syn_opt -incremental
 

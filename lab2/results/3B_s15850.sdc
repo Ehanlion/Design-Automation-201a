@@ -1,6 +1,6 @@
 # ####################################################################
 
-#  Created by Genus(TM) Synthesis Solution 21.19-s055_1 on Sun Feb 01 13:44:30 PST 2026
+#  Created by Genus(TM) Synthesis Solution 21.19-s055_1 on Sun Feb 01 15:20:37 PST 2026
 
 # ####################################################################
 
@@ -17,54 +17,34 @@ set_clock_transition 0.1 [get_clocks blif_clk_net]
 group_path -weight 1.000000 -name cg_enable_group_blif_clk_net -through [list \
   [get_pins RC_CG_HIER_INST0/enable]  \
   [get_pins RC_CG_HIER_INST0/RC_CGIC_INST/E]  \
-  [get_pins RC_CG_HIER_INST1/enable]  \
-  [get_pins RC_CG_HIER_INST1/RC_CGIC_INST/E]  \
-  [get_pins RC_CG_HIER_INST2/enable]  \
-  [get_pins RC_CG_HIER_INST2/RC_CGIC_INST/E]  \
-  [get_pins RC_CG_HIER_INST3/enable]  \
-  [get_pins RC_CG_HIER_INST3/RC_CGIC_INST/E]  \
-  [get_pins RC_CG_HIER_INST4/enable]  \
-  [get_pins RC_CG_HIER_INST4/RC_CGIC_INST/E]  \
+  [get_pins RC_CG_HIER_INST0/enable]  \
+  [get_pins RC_CG_HIER_INST0/RC_CGIC_INST/E]  \
+  [get_pins RC_CG_HIER_INST0/enable]  \
+  [get_pins RC_CG_HIER_INST0/RC_CGIC_INST/E]  \
   [get_pins RC_CG_HIER_INST0/enable]  \
   [get_pins RC_CG_HIER_INST0/RC_CGIC_INST/E]  \
   [get_pins RC_CG_HIER_INST1/enable]  \
   [get_pins RC_CG_HIER_INST1/RC_CGIC_INST/E]  \
   [get_pins RC_CG_HIER_INST2/enable]  \
   [get_pins RC_CG_HIER_INST2/RC_CGIC_INST/E]  \
-  [get_pins RC_CG_HIER_INST3/enable]  \
-  [get_pins RC_CG_HIER_INST3/RC_CGIC_INST/E]  \
-  [get_pins RC_CG_HIER_INST4/enable]  \
-  [get_pins RC_CG_HIER_INST4/RC_CGIC_INST/E]  \
   [get_pins RC_CG_HIER_INST0/enable]  \
   [get_pins RC_CG_HIER_INST0/RC_CGIC_INST/E]  \
   [get_pins RC_CG_HIER_INST1/enable]  \
   [get_pins RC_CG_HIER_INST1/RC_CGIC_INST/E]  \
   [get_pins RC_CG_HIER_INST2/enable]  \
   [get_pins RC_CG_HIER_INST2/RC_CGIC_INST/E]  \
-  [get_pins RC_CG_HIER_INST3/enable]  \
-  [get_pins RC_CG_HIER_INST3/RC_CGIC_INST/E]  \
-  [get_pins RC_CG_HIER_INST4/enable]  \
-  [get_pins RC_CG_HIER_INST4/RC_CGIC_INST/E]  \
   [get_pins RC_CG_HIER_INST0/enable]  \
   [get_pins RC_CG_HIER_INST0/RC_CGIC_INST/E]  \
   [get_pins RC_CG_HIER_INST1/enable]  \
   [get_pins RC_CG_HIER_INST1/RC_CGIC_INST/E]  \
   [get_pins RC_CG_HIER_INST2/enable]  \
   [get_pins RC_CG_HIER_INST2/RC_CGIC_INST/E]  \
-  [get_pins RC_CG_HIER_INST3/enable]  \
-  [get_pins RC_CG_HIER_INST3/RC_CGIC_INST/E]  \
-  [get_pins RC_CG_HIER_INST4/enable]  \
-  [get_pins RC_CG_HIER_INST4/RC_CGIC_INST/E]  \
   [get_pins RC_CG_HIER_INST0/enable]  \
   [get_pins RC_CG_HIER_INST0/RC_CGIC_INST/E]  \
   [get_pins RC_CG_HIER_INST1/enable]  \
   [get_pins RC_CG_HIER_INST1/RC_CGIC_INST/E]  \
   [get_pins RC_CG_HIER_INST2/enable]  \
-  [get_pins RC_CG_HIER_INST2/RC_CGIC_INST/E]  \
-  [get_pins RC_CG_HIER_INST3/enable]  \
-  [get_pins RC_CG_HIER_INST3/RC_CGIC_INST/E]  \
-  [get_pins RC_CG_HIER_INST4/enable]  \
-  [get_pins RC_CG_HIER_INST4/RC_CGIC_INST/E] ]
+  [get_pins RC_CG_HIER_INST2/RC_CGIC_INST/E] ]
 set_clock_gating_check -setup 0.0 
 set_input_delay -clock [get_clocks blif_clk_net] -add_delay 0.0 [get_ports blif_reset_net]
 set_input_delay -clock [get_clocks blif_clk_net] -add_delay 0.0 [get_ports g18]

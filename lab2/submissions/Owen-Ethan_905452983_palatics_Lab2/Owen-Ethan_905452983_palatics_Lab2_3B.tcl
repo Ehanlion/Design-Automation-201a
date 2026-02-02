@@ -103,7 +103,7 @@ set_db lp_clock_gating_hierarchical true
 set_db [current_design] .lp_clock_gating_min_flops 8
 
 # Allow Genus to dissolve hierarchy boundaries aggressively
-set_db auto_ungroup none
+set_db auto_ungroup area
 set_db tns_opto true
 
 # Set effort levels to high for better power optimization

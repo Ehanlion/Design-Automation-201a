@@ -41,7 +41,7 @@ bool generateAreaInstancesVsPeriodPlot(const string& csvFile, const string& outp
 	CSVLinePlotConfig config;
 	config.pageTitle = "Period vs Area + Instances - Lab 2 Problem 3A";
 	config.chartTitle = "Period vs Area + Instances";
-	config.xAxisLabel = "Clock Period (ps)";
+	config.xAxisLabel = "Clock Period";
 	config.yAxisLabel = "Value";
 	config.xColumnIndex = 0;  // period column
 	config.skipHeader = true;
@@ -49,7 +49,7 @@ bool generateAreaInstancesVsPeriodPlot(const string& csvFile, const string& outp
 	// Dataset 1: Total Area (column 1) - Blue
 	DatasetConfig areaDataset(
 		1,  // column index for "total area"
-		"Total Area (μm²)",
+		"Total Area",
 		"rgba(54, 162, 235, 1)",   // Blue line
 		"rgba(54, 162, 235, 0.6)"  // Blue points
 	);
@@ -81,15 +81,15 @@ bool generateAreaVsPeriodPlot(const string& csvFile, const string& outputFile) {
 	CSVLinePlotConfig config;
 	config.pageTitle = "Period vs Area - Lab 2 Problem 3A";
 	config.chartTitle = "Period vs Area";
-	config.xAxisLabel = "Clock Period (ps)";
-	config.yAxisLabel = "Total Area (μm²)";
+	config.xAxisLabel = "Clock Period";
+	config.yAxisLabel = "Total Area";
 	config.xColumnIndex = 0;  // period column
 	config.skipHeader = true;
 	
 	// Single dataset: Total Area (column 1) - Blue
 	DatasetConfig areaDataset(
 		1,  // column index for "total area"
-		"Total Area (μm²)",
+		"Total Area",
 		"rgba(54, 162, 235, 1)",   // Blue line
 		"rgba(54, 162, 235, 0.6)"  // Blue points
 	);
@@ -112,15 +112,15 @@ bool generateSlackVsPeriodPlot(const string& csvFile, const string& outputFile) 
 	CSVLinePlotConfig config;
 	config.pageTitle = "Period vs Slack - Lab 2 Problem 3A";
 	config.chartTitle = "Period vs Slack";
-	config.xAxisLabel = "Clock Period (ps)";
-	config.yAxisLabel = "Slack (ps)";
+	config.xAxisLabel = "Clock Period";
+	config.yAxisLabel = "Slack";
 	config.xColumnIndex = 0;  // period column
 	config.skipHeader = true;
 	
 	// Single dataset: Slack (column 3) - Red
 	DatasetConfig slackDataset(
 		3,  // column index for "slack"
-		"Slack (ps)",
+		"Slack",
 		"rgba(255, 99, 132, 1)",   // Red line
 		"rgba(255, 99, 132, 0.6)"  // Red points
 	);
@@ -143,7 +143,7 @@ bool generateAreaSlackVsPeriodPlot(const string& csvFile, const string& outputFi
 	CSVLinePlotConfig config;
 	config.pageTitle = "Period vs Area and Slack - Lab 2 Problem 3A";
 	config.chartTitle = "Period vs Area and Slack";
-	config.xAxisLabel = "Clock Period (ps)";
+	config.xAxisLabel = "Clock Period";
 	config.yAxisLabel = "Value";
 	config.xColumnIndex = 0;  // period column
 	config.skipHeader = true;
@@ -151,7 +151,7 @@ bool generateAreaSlackVsPeriodPlot(const string& csvFile, const string& outputFi
 	// Dataset 1: Total Area (column 1) - Blue
 	DatasetConfig areaDataset(
 		1,  // column index for "total area"
-		"Total Area (μm²)",
+		"Total Area",
 		"rgba(54, 162, 235, 1)",   // Blue line
 		"rgba(54, 162, 235, 0.6)"  // Blue points
 	);
@@ -160,7 +160,7 @@ bool generateAreaSlackVsPeriodPlot(const string& csvFile, const string& outputFi
 	// Dataset 2: Slack (column 3) - Red
 	DatasetConfig slackDataset(
 		3,  // column index for "slack"
-		"Slack (ps)",
+		"Slack",
 		"rgba(255, 99, 132, 1)",   // Red line
 		"rgba(255, 99, 132, 0.6)"  // Red points
 	);
@@ -183,15 +183,15 @@ bool generateAreaVsPeriodPlotFiltered(const string& csvFile, const string& outpu
 	CSVLinePlotConfig config;
 	config.pageTitle = "Period vs Area (Filtered: slack >= 0 and < 200) - Lab 2 Problem 3A";
 	config.chartTitle = "Period vs Area";
-	config.xAxisLabel = "Clock Period (ps)";
-	config.yAxisLabel = "Total Area (μm²)";
+	config.xAxisLabel = "Clock Period";
+	config.yAxisLabel = "Total Area";
 	config.xColumnIndex = 0;  // period column
 	config.skipHeader = true;
 	
 	// Single dataset: Total Area (column 1) - Blue
 	DatasetConfig areaDataset(
 		1,  // column index for "total area"
-		"Total Area (μm²)",
+		"Total Area",
 		"rgba(54, 162, 235, 1)",   // Blue line
 		"rgba(54, 162, 235, 0.6)"  // Blue points
 	);
@@ -214,7 +214,7 @@ bool generateSynthesisMetricsPlot(const string& csvFile, const string& outputFil
 	CSVLinePlotConfig config;
 	config.pageTitle = "Synthesis Metrics - Lab 2 Problem 3A";
 	config.chartTitle = "Synthesis Metrics";
-	config.xAxisLabel = "Clock Period (ps)";
+	config.xAxisLabel = "Clock Period";
 	config.yAxisLabel = "Value";
 	config.xColumnIndex = 0;  // period column
 	config.skipHeader = true;
@@ -222,7 +222,7 @@ bool generateSynthesisMetricsPlot(const string& csvFile, const string& outputFil
 	// Dataset 1: Total Area (column 1) - Blue
 	DatasetConfig areaDataset(
 		1,  // column index for "total area"
-		"Total Area (μm²)",
+		"Total Area",
 		"rgba(54, 162, 235, 1)",   // Blue line
 		"rgba(54, 162, 235, 0.6)"  // Blue points
 	);
@@ -240,7 +240,7 @@ bool generateSynthesisMetricsPlot(const string& csvFile, const string& outputFil
 	// Dataset 3: Slack (column 3) - Red
 	DatasetConfig slackDataset(
 		3,  // column index for "slack"
-		"Slack (ps)",
+		"Slack",
 		"rgba(255, 99, 132, 1)",   // Red line
 		"rgba(255, 99, 132, 0.6)"  // Red points
 	);
@@ -263,7 +263,7 @@ bool generateSynthesisMetricsPlotFiltered(const string& csvFile, const string& o
 	CSVLinePlotConfig config;
 	config.pageTitle = "Synthesis Metrics (Filtered: slack >= 0 and < 200) - Lab 2 Problem 3A";
 	config.chartTitle = "Synthesis Metrics (Filtered: slack >= 0 and < 200)";
-	config.xAxisLabel = "Clock Period (ps)";
+	config.xAxisLabel = "Clock Period";
 	config.yAxisLabel = "Value";
 	config.xColumnIndex = 0;  // period column
 	config.skipHeader = true;
@@ -271,7 +271,7 @@ bool generateSynthesisMetricsPlotFiltered(const string& csvFile, const string& o
 	// Dataset 1: Total Area (column 1) - Blue
 	DatasetConfig areaDataset(
 		1,  // column index for "total area"
-		"Total Area (μm²)",
+		"Total Area",
 		"rgba(54, 162, 235, 1)",   // Blue line
 		"rgba(54, 162, 235, 0.6)"  // Blue points
 	);
@@ -289,7 +289,7 @@ bool generateSynthesisMetricsPlotFiltered(const string& csvFile, const string& o
 	// Dataset 3: Slack (column 3) - Red
 	DatasetConfig slackDataset(
 		3,  // column index for "slack"
-		"Slack (ps)",
+		"Slack",
 		"rgba(255, 99, 132, 1)",   // Red line
 		"rgba(255, 99, 132, 0.6)"  // Red points
 	);
@@ -312,7 +312,7 @@ bool generateAreaInstancesVsPeriodPlotFiltered(const string& csvFile, const stri
 	CSVLinePlotConfig config;
 	config.pageTitle = "Period vs Area + Instances (Filtered: slack >= 0 and < 200) - Lab 2 Problem 3A";
 	config.chartTitle = "Period vs Area + Instances (Filtered: slack >= 0 and < 200)";
-	config.xAxisLabel = "Clock Period (ps)";
+	config.xAxisLabel = "Clock Period";
 	config.yAxisLabel = "Value";
 	config.xColumnIndex = 0;  // period column
 	config.skipHeader = true;
@@ -320,7 +320,7 @@ bool generateAreaInstancesVsPeriodPlotFiltered(const string& csvFile, const stri
 	// Dataset 1: Total Area (column 1) - Blue
 	DatasetConfig areaDataset(
 		1,  // column index for "total area"
-		"Total Area (μm²)",
+		"Total Area",
 		"rgba(54, 162, 235, 1)",   // Blue line
 		"rgba(54, 162, 235, 0.6)"  // Blue points
 	);
@@ -352,15 +352,15 @@ bool generateSlackVsPeriodPlotFiltered(const string& csvFile, const string& outp
 	CSVLinePlotConfig config;
 	config.pageTitle = "Period vs Slack (Filtered: slack >= 0 and < 200) - Lab 2 Problem 3A";
 	config.chartTitle = "Period vs Slack (Filtered: slack >= 0 and < 200)";
-	config.xAxisLabel = "Clock Period (ps)";
-	config.yAxisLabel = "Slack (ps)";
+	config.xAxisLabel = "Clock Period";
+	config.yAxisLabel = "Slack";
 	config.xColumnIndex = 0;  // period column
 	config.skipHeader = true;
 	
 	// Single dataset: Slack (column 3) - Red
 	DatasetConfig slackDataset(
 		3,  // column index for "slack"
-		"Slack (ps)",
+		"Slack",
 		"rgba(255, 99, 132, 1)",   // Red line
 		"rgba(255, 99, 132, 0.6)"  // Red points
 	);
@@ -383,7 +383,7 @@ bool generateAreaSlackVsPeriodPlotFiltered(const string& csvFile, const string& 
 	CSVLinePlotConfig config;
 	config.pageTitle = "Period vs Area and Slack (Filtered: slack >= 0 and < 200) - Lab 2 Problem 3A";
 	config.chartTitle = "Period vs Area and Slack (Filtered: slack >= 0 and < 200)";
-	config.xAxisLabel = "Clock Period (ps)";
+	config.xAxisLabel = "Clock Period";
 	config.yAxisLabel = "Value";
 	config.xColumnIndex = 0;  // period column
 	config.skipHeader = true;
@@ -391,7 +391,7 @@ bool generateAreaSlackVsPeriodPlotFiltered(const string& csvFile, const string& 
 	// Dataset 1: Total Area (column 1) - Blue
 	DatasetConfig areaDataset(
 		1,  // column index for "total area"
-		"Total Area (μm²)",
+		"Total Area",
 		"rgba(54, 162, 235, 1)",   // Blue line
 		"rgba(54, 162, 235, 0.6)"  // Blue points
 	);
@@ -400,7 +400,7 @@ bool generateAreaSlackVsPeriodPlotFiltered(const string& csvFile, const string& 
 	// Dataset 2: Slack (column 3) - Red
 	DatasetConfig slackDataset(
 		3,  // column index for "slack"
-		"Slack (ps)",
+		"Slack",
 		"rgba(255, 99, 132, 1)",   // Red line
 		"rgba(255, 99, 132, 0.6)"  // Red points
 	);

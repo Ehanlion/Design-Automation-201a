@@ -1,0 +1,19 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/w/class.1/ee/ee201o/ee201ota/oa/include",
+                "/w/class.1/ee/ee201o/ee201ota/oa/include/oa",
+                "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/g++",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}

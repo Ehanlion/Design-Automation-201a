@@ -1,230 +1,294 @@
-//Author: Firstname Lastname
-//UID: XXX-XXX-XXX
-//UCLA EE 201A Lab 3
+// Author: Ethan Owen
+// UID: 905452983
+// UCLA EE 201A Lab 3
 
 // *****************************************************************************
-// HelloWorld.cpp
+// Lab 3: Incremental Placement Using OpenAccess
 //
-// The following tasks are performed by this program
-//  1. Derive an oaTech observer to handle conflicts in the technology hierarchy
-//  2. Derive an oaLibDefsList observer to handle warnings related to lib.defs
-//  3. Open the design
-//  4. Print the library name
-//  5. Print the cell name
-//  6. Print the view name
-//  7. Create nets with the names "Hello" and "World"
-//  8. Save these nets
-//  9. Run the net iterator and print the existing nets in the design
-//
-// ****************************************************************************
-// Except as specified in the OpenAccess terms of use of Cadence or Silicon
-// Integration Initiative, this material may not be copied, modified,
-// re-published, uploaded, executed, or distributed in any way, in any medium,
-// in whole or in part, without prior written permission from Cadence.
-//
-//                Copyright 2002-2005 Cadence Design Systems, Inc.
-//                           All Rights Reserved.
-//
-// To distribute any derivative work based upon this file you must first contact
-// Si2 @ contracts@si2.org.
-//
-// *****************************************************************************
+// Problem 1: Compute total HPWL for ALL nets in the design
+// Problem 2: Incremental placement via cell swapping (placeholder)
 // *****************************************************************************
 
-#include <iostream>
 #include "oaDesignDB.h"
-#include <bits/stdc++.h> 
+#include <algorithm>
+#include <iostream>
+#include <iomanip>
+#include <vector>
+#include <string>
 #include <sys/time.h>
 
-#include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonTechObserver.h"
-#include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonLibDefListObserver.h"
 #include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonFunctions.h"
+#include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonLibDefListObserver.h"
+#include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonTechObserver.h"
 
 using namespace oa;
 using namespace std;
 
 static oaNativeNS ns;
 
-
-
-
 // ****************************************************************************
 // printDesignNames()
+// ****************************************************************************
+void printDesignNames(oaDesign* design) {
+	oaString libName;
+	oaString cellName;
+	oaString viewName;
+
+	design->getLibName(ns, libName);
+	design->getCellName(ns, cellName);
+	design->getViewName(ns, viewName);
+
+	cout << "\tThe library name for this design is : " << libName << endl;
+	cout << "\tThe cell name for this design is : " << cellName << endl;
+	cout << "\tThe view name for this design is : " << viewName << endl;
+}
+
+// ****************************************************************************
+// printNets()
+// ****************************************************************************
+void printNets(oaDesign* design) {
+	oaBlock* block = design->getTopBlock();
+
+	if (block) {
+		oaString netName;
+		int count = 0;
+
+		cout << "The following nets exist in this design." << endl;
+
+		oaIter<oaNet> netIterator(block->getNets());
+		while (oaNet* net = netIterator.getNext()) {
+			net->getName(ns, netName);
+			cout << "\t" << netName;
+			count++;
+			if (count % 5 == 0) cout << endl;
+		}
+		if (count % 5 != 0) cout << endl;
+		cout << "Total net count: " << count << endl;
+	} else {
+		cout << "There is no block in this design" << endl;
+	}
+}
+
+// ****************************************************************************
+// computeHPWLForNet()
 //
-// This function gets the library, cell and view names associated with the open
-// design and prints them.
+// Computes HPWL for a single net by finding the bounding box of all endpoints.
+// For instance terminals: uses instance bounding box center as pin location.
+// For primary I/O terminals: follows oaTerm -> oaPin -> oaPinFig path.
+// Returns HPWL in DBU, or -1 if no valid endpoints found.
 // ****************************************************************************
-void
-printDesignNames(oaDesign *design)
-{
-    oaString    libName;
-    oaString    cellName;
-    oaString    viewName;
+double computeHPWLForNet(oaNet* net) {
+	oaInt4 minX = 0, minY = 0, maxX = 0, maxY = 0;
+	bool initialized = false;
 
-    // Library, cell and view names are obtained.
-    design->getLibName(ns, libName);
-    design->getCellName(ns, cellName);
-    design->getViewName(ns, viewName);
+	// Helper lambda to expand bounding box with a point
+	auto expandBBox = [&](oaInt4 x, oaInt4 y) {
+		if (!initialized) {
+			minX = maxX = x;
+			minY = maxY = y;
+			initialized = true;
+		} else {
+			if (x < minX) minX = x;
+			if (x > maxX) maxX = x;
+			if (y < minY) minY = y;
+			if (y > maxY) maxY = y;
+		}
+	};
 
-    // Library, cell and view names are printed.
-    cout << "\tThe library name for this design is : " << libName << endl;
-    cout << "\tThe cell name for this design is : " << cellName << endl;
-    cout << "\tThe view name for this design is : " << viewName << endl;
+	// Process instance terminals (oaInstTerm)
+	// Use instance bounding box center as pin location approximation
+	oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
+	while (oaInstTerm* instTerm = instTermIterator.getNext()) {
+		oaInst* instance = instTerm->getInst();
+
+		oaBox instanceBBox;
+		instance->getBBox(instanceBBox);
+		oaPoint ll = instanceBBox.lowerLeft();
+		oaPoint ur = instanceBBox.upperRight();
+
+		oaInt4 centerX = (ll.x() + ur.x()) / 2;
+		oaInt4 centerY = (ll.y() + ur.y()) / 2;
+
+		expandBBox(centerX, centerY);
+	}
+
+	// Process primary I/O terminals (oaTerm -> oaPin -> oaPinFig)
+	oaIter<oaTerm> termIterator(net->getTerms());
+	while (oaTerm* term = termIterator.getNext()) {
+		oaIter<oaPin> pinIterator(term->getPins());
+		while (oaPin* pin = pinIterator.getNext()) {
+			oaIter<oaPinFig> pinFigIterator(pin->getFigs());
+			while (oaPinFig* pinFig = pinFigIterator.getNext()) {
+				oaBox pinBox;
+				pinFig->getBBox(pinBox);
+
+				// Use center of pin figure bounding box
+				oaPoint ll = pinBox.lowerLeft();
+				oaPoint ur = pinBox.upperRight();
+				oaInt4 centerX = (ll.x() + ur.x()) / 2;
+				oaInt4 centerY = (ll.y() + ur.y()) / 2;
+
+				expandBBox(centerX, centerY);
+			}
+		}
+	}
+
+	if (!initialized) {
+		return -1;
+	}
+
+	return (double)((maxX - minX) + (maxY - minY));
 }
 
-
-
 // ****************************************************************************
-// void printNets()
-//  
-//  This function invokes the net iterator for the design and prints the names
-//  of the nets one by one.
+// computeTotalHPWL()
+//
+// Computes total HPWL for ALL nets in the design (including power, ground,
+// clock, floating, etc.) as required by Lab 3 Problem 1.
 // ****************************************************************************
-void
-printNets(oaDesign *design)
-{
-    // Get the TopBlock of the current design
-    oaBlock *block = design->getTopBlock();
+double computeTotalHPWL(oaDesign* design) {
+	oaBlock* block = design->getTopBlock();
+	if (!block) {
+		cout << "ERROR: No block found in the design." << endl;
+		return 0;
+	}
 
-    if (block) {
-        oaString        netName;
+	double totalHPWL = 0.0;
+	int netCount = 0;
+	int validNetCount = 0;
+	int skippedNets = 0;
 
-        cout << "The following nets exist in this design." << endl;
+	oaIter<oaNet> netIterator(block->getNets());
+	while (oaNet* net = netIterator.getNext()) {
+		netCount++;
+		double hpwl = computeHPWLForNet(net);
+		if (hpwl >= 0) {
+			totalHPWL += hpwl;
+			validNetCount++;
+		} else {
+			// Net has no physical endpoints (floating net)
+			skippedNets++;
+		}
+	}
 
-        // Iterate over all nets in the design
-        oaIter<oaNet>   netIterator(block->getNets());
-        while (oaNet * net = netIterator.getNext()) {
-            net->getName(ns, netName);
-            cout << "\t" << netName << endl;
-        }
-    } else {
-        cout << "There is no block in this design" << endl;
-    }
+	cout << "\tTotal nets processed: " << netCount << endl;
+	cout << "\tNets with valid HPWL: " << validNetCount << endl;
+	cout << "\tNets without endpoints (skipped): " << skippedNets << endl;
+	cout << "\tTotal HPWL: " << fixed << setprecision(0) << totalHPWL << " DBU" << endl;
+
+	return totalHPWL;
 }
-
-
-
-
-
 
 // ****************************************************************************
 // main()
-//
-// This is the top level function that opens the design, prints library, cell,
-// and view names, creates nets, and iterates the design to print the net 
-// names.
 // ****************************************************************************
-int
-main(int    argc,
-     char   *argv[])
-{
-    try {
-        // Initialize OA with data model 3, since incremental technology
-        // databases are supported by this application.
-        oaDesignInit(oacAPIMajorRevNumber, oacAPIMinorRevNumber, 3);
+int main(int argc, char* argv[]) {
 
-        oaString                libPath("./DesignLib");
-        oaString                library("DesignLib");
-	oaViewType      	*viewType = oaViewType::get(oacMaskLayout);
-        oaString        	cell("s1196_bench");
-       	oaString        	view("layout"); 
-	oaScalarName            libName(ns,
-                                        library);
-        oaScalarName            cellName(ns,
-                                         cell);
-        oaScalarName            viewName(ns,
-                                         view);
-	oaScalarName    	libraryName(ns,library);
-        // Setup an instance of the oaTech conflict observer.
-        opnTechConflictObserver myTechConflictObserver(1);
+	try {
+		// Initialize OA with data model 3
+		oaDesignInit(oacAPIMajorRevNumber, oacAPIMinorRevNumber, 3);
 
-        // Setup an instance of the oaLibDefList observer.
-        opnLibDefListObserver   myLibDefListObserver(1);
+		oaString libPath("./DesignLib");
+		oaString library("DesignLib");
+		oaViewType* viewType = oaViewType::get(oacMaskLayout);
+		oaString cell("s1196_bench");
+		oaString view("layout");
+		oaScalarName libName(ns, library);
+		oaScalarName cellName(ns, cell);
+		oaScalarName viewName(ns, view);
+		oaScalarName libraryName(ns, library);
 
-        // Read in the lib.defs file.
-	oaLib *lib = oaLib::find(libraryName);
+		// Setup observers
+		opnTechConflictObserver myTechConflictObserver(1);
+		opnLibDefListObserver myLibDefListObserver(1);
 
-        if (!lib) {
-            if (oaLib::exists(libPath)) {
-                // Library does exist at this path but was not in lib.defs
-                lib = oaLib::open(libraryName, libPath);
-            } else {
-            char *DMSystem=getenv("DMSystem");
-            if(DMSystem){
-                    lib = oaLib::create(libraryName, libPath, oacSharedLibMode, DMSystem);
-                } else {
-                    lib = oaLib::create(libraryName, libPath);
-                }
-            }
-            if (lib) {
-                // We need to update the user's lib.def file since we either
-                // found or created the library without a lib.defs reference.
-                updateLibDefsFile(libraryName, libPath);
-            } else {
-                // Print error mesage 
-                cerr << "ERROR : Unable to create " << libPath << "/";
-                cerr << library << endl;
-                return(1);
-            }
-        }
-	// Create the design with the specified viewType,
-        // Opening it for a 'write' operation.
-        cout << "The design is created and opened in 'write' mode." << endl;
+		// Open or create library
+		oaLib* lib = oaLib::find(libraryName);
+		if (!lib) {
+			if (oaLib::exists(libPath)) {
+				lib = oaLib::open(libraryName, libPath);
+			} else {
+				char* DMSystem = getenv("DMSystem");
+				if (DMSystem) {
+					lib = oaLib::create(libraryName, libPath, oacSharedLibMode, DMSystem);
+				} else {
+					lib = oaLib::create(libraryName, libPath);
+				}
+			}
+			if (lib) {
+				updateLibDefsFile(libraryName, libPath);
+			} else {
+				cerr << "ERROR : Unable to create " << libPath << "/";
+				cerr << library << endl;
+				return (1);
+			}
+		}
 
-        oaDesign    *design = oaDesign::open(libraryName, cellName, viewName,
-                                             viewType, 'r');
+		// Open the design in read mode
+		cout << "The design is created and opened in 'read' mode." << endl;
+		oaDesign* design =
+			oaDesign::open(libraryName, cellName, viewName, viewType, 'r');
 
-        // The library, cell, and view names are printed.
-        printDesignNames(design);
-		  printNets(design);
+		// Print design info
+		printDesignNames(design);
+		printNets(design);
 
-	// Get the TopBlock for this design.
-        oaBlock *block = design->getTopBlock();
-	
-	// If no TopBlock exist yet then create one.
-        if (!block) {
-            block = oaBlock::create(design);
-        }
+		// Get the TopBlock
+		oaBlock* block = design->getTopBlock();
+		if (!block) {
+			block = oaBlock::create(design);
+		}
 
-        //EE 201A Lab 3 Problem 1 starts here
-        cout << endl << "----- Firstname Lastname: Problem 1 -----" << endl;
+		// =====================================================================
+		// EE 201A Lab 3 Problem 1: Total HPWL for all nets
+		// =====================================================================
+		cout << endl
+			 << "----- Ethan Owen: Problem 1 -----" << endl;
 
+		double totalHPWL = computeTotalHPWL(design);
 
-        //EE 201A Lab 3 Problem 2 starts here
-        cout << endl << "----- Firstname Lastname: Problem 2 -----" << endl;
-        struct timeval start, end;
-        gettimeofday(&start, NULL);
+		// =====================================================================
+		// EE 201A Lab 3 Problem 2: Incremental placement
+		// =====================================================================
+		cout << endl
+			 << "----- Ethan Owen: Problem 2 -----" << endl;
+		struct timeval start, end;
+		gettimeofday(&start, NULL);
 
-        // ..... YOUR CODE HERE
+		// Problem 2 placeholder -- incremental placement not yet implemented
+		int totalSwaps = 0;
+		double improvedHPWL = totalHPWL;
 
-        gettimeofday(&end, NULL);
-        double time_taken;
-        time_taken = (end.tv_sec - start.tv_sec) * 1e6;
-        time_taken = (time_taken + (end.tv_usec - 
-                                start.tv_usec)) * 1e-6;
+		gettimeofday(&end, NULL);
+		double time_taken;
+		time_taken = (end.tv_sec - start.tv_sec) * 1e6;
+		time_taken = (time_taken + (end.tv_usec - start.tv_usec)) * 1e-6;
 
-        // Output answers
-        cout << "Problem 1 -- Total wirelength of original design: " << "*YOUR VALUE HERE*" << endl;
-        cout << "Problem 2 -- Total wirelength AFTER my incremental placement algorithm:  " << "*YOUR VALUE HERE*" << endl;
-        cout << "Problem 2 -- Total number of swaps used:  " << "*YOUR VALUE HERE*" << endl;
-        cout << "Problem 2 -- Time taken:  " << fixed
-            << time_taken << setprecision(6);
-        cout << " sec" << endl;
+		// Output answers
+		cout << endl;
+		cout << "Problem 1 -- Total wirelength of original design: "
+			 << fixed << setprecision(0) << totalHPWL << " DBU" << endl;
+		cout << "Problem 2 -- Total wirelength AFTER my incremental placement "
+				"algorithm:  "
+			 << fixed << setprecision(0) << improvedHPWL << " DBU" << endl;
+		cout << "Problem 2 -- Total number of swaps used:  " << totalSwaps
+			 << endl;
+		cout << "Problem 2 -- Time taken:  " << fixed << time_taken
+			 << setprecision(6);
+		cout << " sec" << endl;
 
-        // The design is closed.   
-        design->close();
+		// Close design and library
+		design->close();
+		lib->close();
 
-        // The library is closed.   
-        lib->close();
+	} catch (oaCompatibilityError& ex) {
+		handleFBCError(ex);
+		exit(1);
 
-    } catch (oaCompatibilityError &ex) {
-        handleFBCError(ex);
-        exit(1);
+	} catch (oaException& excp) {
+		cout << "ERROR: " << excp.getMsg() << endl;
+		exit(1);
+	}
 
-    } catch (oaException &excp) {
-        cout << "ERROR: " << excp.getMsg() << endl;
-        exit(1);
-    }
-
-    return 0;
+	return 0;
 }

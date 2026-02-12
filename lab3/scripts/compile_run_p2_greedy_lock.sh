@@ -12,8 +12,11 @@ cd "$LAB3_DIR" || exit 1
 
 source lab1_setup
 
-echo "Refreshing OA database from LEF/Verilog/DEF ..."
-"$SCRIPT_DIR/setup_oa_database.sh"
+# Ensure OA database is set up
+if [ ! -d "DesignLib" ]; then
+    echo "DesignLib not found - running setup first ..."
+    "$SCRIPT_DIR/setup_oa_database.sh" || exit 1
+fi
 
 echo "Compiling lab3_p2_greedy_lock.cpp in $LAB3_DIR ..."
 make -s PROG=lab3_p2_greedy_lock clean 2>/dev/null || true

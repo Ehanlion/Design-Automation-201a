@@ -17,6 +17,12 @@ if [ ! -d "DesignLib" ]; then
     "$SCRIPT_DIR/setup_oa_database.sh" || exit 1
 fi
 
+# Check if source file exists
+if [ ! -f "lab3.cpp" ]; then
+    echo "ERROR: lab3.cpp not found!"
+    exit 1
+fi
+
 echo "Compiling lab3.cpp in $LAB3_DIR ..."
 # Clean old object files to ensure fresh recompilation
 make -s clean 2>/dev/null || true

@@ -9,6 +9,10 @@ LAB3_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$LAB3_DIR" || exit 1
 
 # Source OpenAccess environment
+if [ ! -f "lab1_setup" ]; then
+    echo "ERROR: lab1_setup not found in $LAB3_DIR"
+    exit 1
+fi
 source lab1_setup
 
 # Ensure OA database is set up
@@ -17,9 +21,9 @@ if [ ! -d "DesignLib" ]; then
     "$SCRIPT_DIR/setup_oa_database.sh" || exit 1
 fi
 
-# Check if source file exists
-if [ ! -f "lab3_p2_centroid_swap.cpp" ]; then
-    echo "ERROR: lab3_p2_centroid_swap.cpp not found!"
+# Check if source file exists and is non-empty
+if [ ! -s "lab3_p2_centroid_swap.cpp" ]; then
+    echo "ERROR: lab3_p2_centroid_swap.cpp not found or empty!"
     exit 1
 fi
 

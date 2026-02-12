@@ -438,6 +438,8 @@ int main(int argc, char* argv[]) {
 		double timeTakenSec = (end.tv_sec - start.tv_sec) * 1e6;
 		timeTakenSec = (timeTakenSec + (end.tv_usec - start.tv_usec)) * 1e-6;
 
+		double scoreMetric = totalHPWL * totalHPWL * timeTakenSec;
+
 		cout << endl;
 		cout << "Problem 1 -- Total wirelength of original design: "
 			 << fixed << setprecision(0) << originalTotalHPWL << " DBU"
@@ -451,6 +453,8 @@ int main(int argc, char* argv[]) {
 			 << stats.legalPairsEvaluated << endl;
 		cout << "Problem 2 -- Time taken:  " << fixed << setprecision(6)
 			 << timeTakenSec << " sec" << endl;
+		cout << "Problem 2 -- Score metric (Total HPWL^2 * runtime):  "
+			 << scientific << setprecision(6) << scoreMetric << endl;
 
 		design->close();
 		lib->close();

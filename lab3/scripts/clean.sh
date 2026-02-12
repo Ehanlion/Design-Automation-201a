@@ -3,6 +3,8 @@
 # Clean script for lab3 - removes compiled files and design library
 # Run from any directory - script locates lab3 and cleans from there
 
+set -eo pipefail
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LAB3_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 

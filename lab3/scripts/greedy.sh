@@ -10,12 +10,21 @@ LAB3_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 cd "$LAB3_DIR" || exit 1
 
+if [ ! -f "lab1_setup" ]; then
+    echo "ERROR: lab1_setup not found in $LAB3_DIR"
+    exit 1
+fi
 source lab1_setup
 
 # Ensure OA database is set up
 if [ ! -d "DesignLib" ]; then
     echo "DesignLib not found - running setup first ..."
     "$SCRIPT_DIR/setup_oa_database.sh" || exit 1
+fi
+
+if [ ! -s "lab3_p2_greedy_lock.cpp" ]; then
+    echo "ERROR: lab3_p2_greedy_lock.cpp not found or empty!"
+    exit 1
 fi
 
 echo "Compiling lab3_p2_greedy_lock.cpp in $LAB3_DIR ..."

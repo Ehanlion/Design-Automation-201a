@@ -2,8 +2,8 @@
 // UID: 905452983
 // UCLA EE 201A Lab 3
 //
-// Iteration 1 for Problem 2:
-// Greedy best-swap algorithm with locking.
+// Iteration 2 for Problem 2:
+// Simulated annealing with swap-only legal moves.
 // Constraints enforced:
 //   1) Swaps only between identical cells (same master design).
 //   2) Swaps only between instances with identical orientation.
@@ -12,12 +12,16 @@
 #include "oaDesignDB.h"
 #include <algorithm>
 #include <climits>
+#include <cmath>
+#include <cstdint>
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <random>
 #include <string>
 #include <sys/time.h>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "/w/class.1/ee/ee201o/ee201ota/oa/examples/oa/common/commonFunctions.h"
@@ -162,6 +166,19 @@ void collectAffectedNets(const vector<InstData>& instances, int instA, int instB
 	addFromInst(instB);
 }
 
+void applySwap(vector<InstData>& instances, int instA, int instB) {
+	oaPoint originA = instances[instA].origin;
+	oaPoint originB = instances[instB].origin;
+
+	instances[instA].inst->setOrigin(originB);
+	instances[instB].inst->setOrigin(originA);
+
+	instances[instA].origin = originB;
+	instances[instB].origin = originA;
+	swap(instances[instA].centerX, instances[instB].centerX);
+	swap(instances[instA].centerY, instances[instB].centerY);
+}
+
 void buildPlacementData(oaDesign* design, vector<InstData>& instances,
 						vector<NetData>& nets) {
 	instances.clear();
@@ -264,9 +281,9 @@ double computeTotalHPWLAndStats(const vector<NetData>& nets, int& validNets,
 	return total;
 }
 
-IncrementalStats runGreedyIncrementalPlacement(vector<InstData>& instances,
-											   vector<NetData>& nets,
-											   double& totalHPWL) {
+IncrementalStats runSimulatedAnnealingPlacement(vector<InstData>& instances,
+												vector<NetData>& nets,
+												double& totalHPWL) {
 	IncrementalStats stats;
 	stats.swapsApplied = 0;
 	stats.legalPairsEvaluated = 0;
@@ -275,91 +292,228 @@ IncrementalStats runGreedyIncrementalPlacement(vector<InstData>& instances,
 		return stats;
 	}
 
-	vector<int> marks(nets.size(), 0);
-	vector<int> affected;
-	int token = 1;
-
-	while (true) {
-		double bestDelta = 0.0;
-		int bestA = -1;
-		int bestB = -1;
-		vector<int> bestAffected;
-
-		for (int i = 0; i < (int)instances.size(); i++) {
-			if (!instances[i].movable || instances[i].locked) {
+	vector<pair<int, int>> legalPairs;
+	for (int i = 0; i < (int)instances.size(); i++) {
+		if (!instances[i].movable) {
+			continue;
+		}
+		for (int j = i + 1; j < (int)instances.size(); j++) {
+			if (!instances[j].movable) {
 				continue;
 			}
-			for (int j = i + 1; j < (int)instances.size(); j++) {
-				if (!instances[j].movable || instances[j].locked) {
-					continue;
-				}
-				if (!isLegalSwapPair(instances[i], instances[j])) {
-					continue;
-				}
+			if (isLegalSwapPair(instances[i], instances[j])) {
+				legalPairs.emplace_back(i, j);
+			}
+		}
+	}
 
-				stats.legalPairsEvaluated++;
+	if (legalPairs.empty()) {
+		return stats;
+	}
 
-				if (token == INT_MAX) {
-					fill(marks.begin(), marks.end(), 0);
-					token = 1;
-				}
-				collectAffectedNets(instances, i, j, marks, token, affected);
-				token++;
+	struct timeval wallStart;
+	gettimeofday(&wallStart, NULL);
 
-				double oldAffectedHPWL = 0.0;
-				double newAffectedHPWL = 0.0;
+	uint64_t seed = (uint64_t)wallStart.tv_sec * 1000000ull +
+					(uint64_t)wallStart.tv_usec + (uint64_t)legalPairs.size();
+	mt19937_64 rng(seed);
+	uniform_real_distribution<double> unitDist(0.0, 1.0);
+	uniform_int_distribution<size_t> pairDist(0, legalPairs.size() - 1);
 
-				for (int netId : affected) {
-					oldAffectedHPWL += normalizeHPWL(nets[netId].hpwl);
-					double newHPWL = computeNetHPWL(nets[netId], instances, i, j);
-					newAffectedHPWL += normalizeHPWL(newHPWL);
-				}
+	vector<int> marks(nets.size(), 0);
+	vector<int> affected;
+	vector<double> candidateHPWL;
+	int token = 1;
 
-				double delta = oldAffectedHPWL - newAffectedHPWL;
-				if (delta > bestDelta + 1e-6) {
-					bestDelta = delta;
-					bestA = i;
-					bestB = j;
-					bestAffected = affected;
-				}
+	auto collectSwapCost = [&](int instA, int instB, double& oldAffected,
+							   double& newAffected) {
+		if (token == INT_MAX) {
+			fill(marks.begin(), marks.end(), 0);
+			token = 1;
+		}
+		collectAffectedNets(instances, instA, instB, marks, token, affected);
+		token++;
+
+		oldAffected = 0.0;
+		newAffected = 0.0;
+		candidateHPWL.clear();
+		candidateHPWL.reserve(affected.size());
+
+		for (int netId : affected) {
+			oldAffected += normalizeHPWL(nets[netId].hpwl);
+			double swappedHPWL = computeNetHPWL(nets[netId], instances, instA, instB);
+			candidateHPWL.push_back(swappedHPWL);
+			newAffected += normalizeHPWL(swappedHPWL);
+		}
+	};
+
+	int sampleCount = min((int)legalPairs.size(), 256);
+	double worsenDeltaSum = 0.0;
+	int worsenDeltaCount = 0;
+	for (int s = 0; s < sampleCount; s++) {
+		const pair<int, int>& move = legalPairs[pairDist(rng)];
+		double oldAffected = 0.0;
+		double newAffected = 0.0;
+		collectSwapCost(move.first, move.second, oldAffected, newAffected);
+		double deltaCost = newAffected - oldAffected;
+		if (deltaCost > 0.0) {
+			worsenDeltaSum += deltaCost;
+			worsenDeltaCount++;
+		}
+	}
+
+	double temperature = 1.0;
+	if (worsenDeltaCount > 0) {
+		temperature = max(1.0, (worsenDeltaSum / (double)worsenDeltaCount) * 0.20);
+	} else {
+		temperature = max(1.0, totalHPWL * 1e-6);
+	}
+
+	const double minTemperature = max(1e-2, temperature * 1e-3);
+	const double coolingAlpha = 0.95;
+	const int movesPerTemp = max(100, min(1200, (int)legalPairs.size() / 8 + 1));
+	const long long maxMoves =
+		min(250000LL, max(50000LL, (long long)legalPairs.size() * 20LL));
+	const double maxRuntimeSec = 8.0;
+
+	double bestHPWL = totalHPWL;
+	vector<oaPoint> bestOrigins(instances.size());
+	vector<oaInt4> bestCenterX(instances.size());
+	vector<oaInt4> bestCenterY(instances.size());
+
+	auto captureBestPlacement = [&]() {
+		for (int i = 0; i < (int)instances.size(); i++) {
+			bestOrigins[i] = instances[i].origin;
+			bestCenterX[i] = instances[i].centerX;
+			bestCenterY[i] = instances[i].centerY;
+		}
+	};
+	captureBestPlacement();
+
+	// Warm-start SA with a few steepest-descent swaps before annealing.
+	const int warmStartMaxSwaps = 24;
+	for (int warmStep = 0; warmStep < warmStartMaxSwaps; warmStep++) {
+		double warmStartBestImprove = 0.0;
+		int warmStartA = -1;
+		int warmStartB = -1;
+		vector<int> warmStartAffected;
+		vector<double> warmStartHPWL;
+
+		for (const pair<int, int>& move : legalPairs) {
+			double oldAffected = 0.0;
+			double newAffected = 0.0;
+			collectSwapCost(move.first, move.second, oldAffected, newAffected);
+			stats.legalPairsEvaluated++;
+
+			double improve = oldAffected - newAffected;
+			if (improve > warmStartBestImprove + 1e-6) {
+				warmStartBestImprove = improve;
+				warmStartA = move.first;
+				warmStartB = move.second;
+				warmStartAffected = affected;
+				warmStartHPWL = candidateHPWL;
 			}
 		}
 
-		if (bestA < 0 || bestB < 0 || bestDelta <= 1e-6) {
+		if (warmStartA < 0 || warmStartB < 0 || warmStartBestImprove <= 1e-6) {
 			break;
 		}
 
-		oaPoint originA = instances[bestA].origin;
-		oaPoint originB = instances[bestB].origin;
-		instances[bestA].inst->setOrigin(originB);
-		instances[bestB].inst->setOrigin(originA);
-
-		instances[bestA].origin = originB;
-		instances[bestB].origin = originA;
-		swap(instances[bestA].centerX, instances[bestB].centerX);
-		swap(instances[bestA].centerY, instances[bestB].centerY);
-
-		for (int netId : bestAffected) {
-			double oldHPWL = normalizeHPWL(nets[netId].hpwl);
-			double updatedHPWL = computeNetHPWL(nets[netId], instances);
-			nets[netId].hpwl = updatedHPWL;
-			double newHPWL = normalizeHPWL(updatedHPWL);
-			totalHPWL += (newHPWL - oldHPWL);
+		applySwap(instances, warmStartA, warmStartB);
+		for (int k = 0; k < (int)warmStartAffected.size(); k++) {
+			nets[warmStartAffected[k]].hpwl = warmStartHPWL[k];
 		}
+		totalHPWL -= warmStartBestImprove;
+		stats.swapsApplied++;
+		if (totalHPWL + 1e-6 < bestHPWL) {
+			bestHPWL = totalHPWL;
+			captureBestPlacement();
+		}
+	}
 
-		instances[bestA].locked = true;
-		instances[bestB].locked = true;
-		for (int netId : bestAffected) {
-			for (int instIdx : nets[netId].instIndices) {
-				instances[instIdx].locked = true;
+	long long totalMovesTried = 0;
+	int stagnationEpochs = 0;
+	int swapsAtBest = stats.swapsApplied;
+
+	while (temperature > minTemperature && totalMovesTried < maxMoves &&
+		   stagnationEpochs < 12) {
+		bool acceptedAnyMove = false;
+		bool improvedBest = false;
+
+		for (int moveIdx = 0; moveIdx < movesPerTemp; moveIdx++) {
+			struct timeval now;
+			gettimeofday(&now, NULL);
+			double elapsedSec = (now.tv_sec - wallStart.tv_sec) +
+								(now.tv_usec - wallStart.tv_usec) * 1e-6;
+			if (elapsedSec >= maxRuntimeSec || totalMovesTried >= maxMoves) {
+				stagnationEpochs = 12;
+				break;
+			}
+
+			const pair<int, int>& move = legalPairs[pairDist(rng)];
+			double oldAffected = 0.0;
+			double newAffected = 0.0;
+			collectSwapCost(move.first, move.second, oldAffected, newAffected);
+
+			totalMovesTried++;
+			stats.legalPairsEvaluated++;
+			double deltaCost = newAffected - oldAffected;
+
+			bool acceptMove = false;
+			if (deltaCost < -1e-6) {
+				acceptMove = true;
+			} else if (fabs(deltaCost) <= 1e-6) {
+				acceptMove = (unitDist(rng) < 0.05);
+			} else {
+				double acceptanceProb = exp(-deltaCost / temperature);
+				acceptMove = (unitDist(rng) < acceptanceProb);
+			}
+			if (!acceptMove) {
+				continue;
+			}
+
+			acceptedAnyMove = true;
+			applySwap(instances, move.first, move.second);
+
+			for (int k = 0; k < (int)affected.size(); k++) {
+				nets[affected[k]].hpwl = candidateHPWL[k];
+			}
+
+			totalHPWL += deltaCost;
+			stats.swapsApplied++;
+
+			if (totalHPWL + 1e-6 < bestHPWL) {
+				bestHPWL = totalHPWL;
+				captureBestPlacement();
+				swapsAtBest = stats.swapsApplied;
+				improvedBest = true;
 			}
 		}
 
-		stats.swapsApplied++;
-		cout << "\tApplied swap #" << stats.swapsApplied
-			 << " with HPWL improvement " << fixed << setprecision(0) << bestDelta
-			 << " DBU" << endl;
+		if (!acceptedAnyMove && !improvedBest) {
+			stagnationEpochs++;
+		} else {
+			stagnationEpochs = 0;
+		}
+		temperature *= coolingAlpha;
 	}
+
+	if (bestHPWL + 1e-6 < totalHPWL) {
+		for (int i = 0; i < (int)instances.size(); i++) {
+			if (instances[i].origin.x() != bestOrigins[i].x() ||
+				instances[i].origin.y() != bestOrigins[i].y()) {
+				instances[i].inst->setOrigin(bestOrigins[i]);
+			}
+			instances[i].origin = bestOrigins[i];
+			instances[i].centerX = bestCenterX[i];
+			instances[i].centerY = bestCenterY[i];
+		}
+		for (int netId = 0; netId < (int)nets.size(); netId++) {
+			nets[netId].hpwl = computeNetHPWL(nets[netId], instances);
+		}
+		totalHPWL = bestHPWL;
+	}
+	stats.swapsApplied = swapsAtBest;
 
 	return stats;
 }
@@ -432,7 +586,7 @@ int main(int argc, char* argv[]) {
 		gettimeofday(&start, NULL);
 
 		IncrementalStats stats =
-			runGreedyIncrementalPlacement(instances, nets, totalHPWL);
+			runSimulatedAnnealingPlacement(instances, nets, totalHPWL);
 
 		gettimeofday(&end, NULL);
 		double timeTakenSec = (end.tv_sec - start.tv_sec) * 1e6;

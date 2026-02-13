@@ -31,6 +31,48 @@ struct CachedNet {
 	oaInt4 fixedMinX, fixedMaxX, fixedMinY, fixedMaxY; // bounding box of fixed pins
 };
 
+// Build one bounding box for a top-level terminal endpoint from all of its pin
+// figures. Returns false if no pin geometry exists.
+static inline bool getTermEndpointBox(oaTerm* term, oaBox& termBox) {
+	bool initialized = false;
+
+	oaIter<oaPin> pinIter(term->getPins());
+	while (oaPin* pin = pinIter.getNext()) {
+		oaIter<oaPinFig> pinFigIter(pin->getFigs());
+		while (oaPinFig* pinFig = pinFigIter.getNext()) {
+			oaBox figBox;
+			pinFig->getBBox(figBox);
+
+			if (!initialized) {
+				termBox = figBox;
+				initialized = true;
+			} else {
+				oaPoint ll = termBox.lowerLeft();
+				oaPoint ur = termBox.upperRight();
+				oaPoint fll = figBox.lowerLeft();
+				oaPoint fur = figBox.upperRight();
+				termBox.set(min(ll.x(), fll.x()), min(ll.y(), fll.y()),
+							max(ur.x(), fur.x()), max(ur.y(), fur.y()));
+			}
+		}
+	}
+
+	return initialized;
+}
+
+static inline int countNetEndpoints(oaNet* net) {
+	int endpointCount = 0;
+	oaIter<oaInstTerm> instTermIter(net->getInstTerms());
+	while (instTermIter.getNext())
+		endpointCount++;
+
+	oaIter<oaTerm> termIter(net->getTerms());
+	while (termIter.getNext())
+		endpointCount++;
+
+	return endpointCount;
+}
+
 // ==========================================================================
 // Compute HPWL for a single net from cached coordinates (pure arithmetic)
 // ==========================================================================
@@ -74,29 +116,53 @@ static inline oaInt4 cachedNetHPWL(const CachedNet& net,
 // ==========================================================================
 // Compute HPWL for a single net using OA API (used only for Problem 1)
 // ==========================================================================
-double computeHPWLForNet(oaNet* net) {
+double computeHPWLForNet(oaNet* net, int* endpointCountOut = nullptr) {
+	// Endpoint policy for Part 1:
+	// - >2 endpoints: HPWL of the smallest bbox including all endpoints.
+	// - <=2 endpoints: center-point approach.
+	int endpointCount = countNetEndpoints(net);
+	if (endpointCountOut)
+		*endpointCountOut = endpointCount;
+
+	bool useFullBBox = (endpointCount > 2);
+
 	oaBox bbox;
 	bool bboxInitialized = false;
 
 	oaIter<oaTerm> termIterator(net->getTerms());
 	while (oaTerm* term = termIterator.getNext()) {
-		oaIter<oaPin> pinIterator(term->getPins());
-		while (oaPin* pin = pinIterator.getNext()) {
-			oaIter<oaPinFig> pinFigIterator(pin->getFigs());
-			while (oaPinFig* pinFig = pinFigIterator.getNext()) {
-				oaBox pinBox;
-				pinFig->getBBox(pinBox);
-				if (!bboxInitialized) {
-					bbox = pinBox;
-					bboxInitialized = true;
-				} else {
-					oaPoint ll = bbox.lowerLeft();
-					oaPoint ur = bbox.upperRight();
-					oaPoint pll = pinBox.lowerLeft();
-					oaPoint pur = pinBox.upperRight();
-					bbox.set(min(ll.x(), pll.x()), min(ll.y(), pll.y()),
-							 max(ur.x(), pur.x()), max(ur.y(), pur.y()));
-				}
+		oaBox termBox;
+		if (!getTermEndpointBox(term, termBox)) {
+			continue;
+		}
+
+		if (useFullBBox) {
+			// For nets with >2 endpoints: use full endpoint bbox coverage.
+			if (!bboxInitialized) {
+				bbox = termBox;
+				bboxInitialized = true;
+			} else {
+				oaPoint ll = bbox.lowerLeft();
+				oaPoint ur = bbox.upperRight();
+				oaPoint tll = termBox.lowerLeft();
+				oaPoint tur = termBox.upperRight();
+				bbox.set(min(ll.x(), tll.x()), min(ll.y(), tll.y()),
+						 max(ur.x(), tur.x()), max(ur.y(), tur.y()));
+			}
+		} else {
+			// For nets with <=2 endpoints: use center point.
+			oaPoint tll = termBox.lowerLeft();
+			oaPoint tur = termBox.upperRight();
+			oaInt4 cx = (tll.x() + tur.x()) / 2;
+			oaInt4 cy = (tll.y() + tur.y()) / 2;
+			if (!bboxInitialized) {
+				bbox.set(cx, cy, cx, cy);
+				bboxInitialized = true;
+			} else {
+				oaPoint ll = bbox.lowerLeft();
+				oaPoint ur = bbox.upperRight();
+				bbox.set(min(ll.x(), cx), min(ll.y(), cy),
+						 max(ur.x(), cx), max(ur.y(), cy));
 			}
 		}
 	}
@@ -136,22 +202,12 @@ double computeTotalHPWL(oaBlock* block, int& netsCounted, int& skippedNets) {
 
 	oaIter<oaNet> netIterator(block->getNets());
 	while (oaNet* net = netIterator.getNext()) {
-		int terminalCount = 0;
-		oaIter<oaInstTerm> itIter(net->getInstTerms());
-		while (itIter.getNext())
-			terminalCount++;
-		oaIter<oaTerm> tIter(net->getTerms());
-		while (tIter.getNext())
-			terminalCount++;
-
-		if (terminalCount < 2) {
-			skippedNets++;
-			continue;
-		}
-
-		double hpwl = computeHPWLForNet(net);
+		int endpointCount = 0;
+		double hpwl = computeHPWLForNet(net, &endpointCount);
 		totalHPWL += hpwl;
 		netsCounted++;
+		if (endpointCount == 0)
+			skippedNets++;
 	}
 
 	return totalHPWL;
@@ -200,20 +256,46 @@ void buildCache(oaBlock* block,
 		cn.fixedMinY = INT_MAX;
 		cn.fixedMaxY = INT_MIN;
 
+		// Count endpoints first to determine method.
+		int endpointCount = countNetEndpoints(net);
+		bool useFullBBox = (endpointCount > 2);
+
 		// Primary I/O terminals (fixed coordinates)
 		oaIter<oaTerm> termIter(net->getTerms());
 		while (oaTerm* term = termIter.getNext()) {
-			oaIter<oaPin> pinIter(term->getPins());
-			while (oaPin* pin = pinIter.getNext()) {
-				oaIter<oaPinFig> pfIter(pin->getFigs());
-				while (oaPinFig* pf = pfIter.getNext()) {
-					oaBox pinBox;
-					pf->getBBox(pinBox);
-					cn.hasFixedPins = true;
-					cn.fixedMinX = min(cn.fixedMinX, pinBox.lowerLeft().x());
-					cn.fixedMinY = min(cn.fixedMinY, pinBox.lowerLeft().y());
-					cn.fixedMaxX = max(cn.fixedMaxX, pinBox.upperRight().x());
-					cn.fixedMaxY = max(cn.fixedMaxY, pinBox.upperRight().y());
+			oaBox termBox;
+			if (!getTermEndpointBox(term, termBox)) {
+				continue;
+			}
+
+			cn.hasFixedPins = true;
+			if (useFullBBox) {
+				// For nets with >2 endpoints: use full bounding box.
+				if (cn.fixedMinX == INT_MAX) {
+					cn.fixedMinX = termBox.lowerLeft().x();
+					cn.fixedMaxX = termBox.upperRight().x();
+					cn.fixedMinY = termBox.lowerLeft().y();
+					cn.fixedMaxY = termBox.upperRight().y();
+				} else {
+					cn.fixedMinX = min(cn.fixedMinX, termBox.lowerLeft().x());
+					cn.fixedMinY = min(cn.fixedMinY, termBox.lowerLeft().y());
+					cn.fixedMaxX = max(cn.fixedMaxX, termBox.upperRight().x());
+					cn.fixedMaxY = max(cn.fixedMaxY, termBox.upperRight().y());
+				}
+			} else {
+				// For nets with <=2 endpoints: use center point.
+				oaPoint tll = termBox.lowerLeft();
+				oaPoint tur = termBox.upperRight();
+				oaInt4 cx = (tll.x() + tur.x()) / 2;
+				oaInt4 cy = (tll.y() + tur.y()) / 2;
+				if (cn.fixedMinX == INT_MAX) {
+					cn.fixedMinX = cn.fixedMaxX = cx;
+					cn.fixedMinY = cn.fixedMaxY = cy;
+				} else {
+					cn.fixedMinX = min(cn.fixedMinX, cx);
+					cn.fixedMinY = min(cn.fixedMinY, cy);
+					cn.fixedMaxX = max(cn.fixedMaxX, cx);
+					cn.fixedMaxY = max(cn.fixedMaxY, cy);
 				}
 			}
 		}
@@ -226,14 +308,6 @@ void buildCache(oaBlock* block,
 			if (found != instIndex.end()) {
 				cn.instIndices.push_back(found->second);
 			}
-		}
-
-		// Only store nets that have >= 2 endpoints
-		int endpoints = cn.instIndices.size() + (cn.hasFixedPins ? 1 : 0);
-		if (endpoints < 2 && cn.instIndices.size() < 2) {
-			// Still add it so indices line up, but it won't contribute
-			cachedNets.push_back(cn);
-			continue;
 		}
 
 		int netIdx = cachedNets.size();

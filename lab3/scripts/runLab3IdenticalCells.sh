@@ -6,16 +6,16 @@ LAB3_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$LAB3_DIR" || exit 1
 
 echo "=========================================="
-echo "Lab 3: Clean, Compile, and Run"
+echo "Lab 3: Clean, Compile, and Run (Identical Cells)"
 echo "=========================================="
 echo ""
 
 # Step 1: Clean up all files
-echo "Step 1: Cleaning up all compiled files and databases..."
+echo "Step 1: Cleaning up compiled files and databases..."
 rm -rf DesignLib
 rm -rf NangateLib
 rm -f *.o
-rm -f lab3
+rm -f lab3IdenticalCells
 rm -f *.log
 rm -f lib.defs
 rm -f cds.lib
@@ -36,9 +36,9 @@ echo "Database setup complete!"
 echo ""
 
 # Step 3: Compile the program
-echo "Step 3: Compiling lab3.cpp..."
-echo "Command: make lab3 CCPATH=g++"
-make lab3 CCPATH=g++
+echo "Step 3: Compiling lab3IdenticalCells.cpp..."
+echo "Command: make PROG=lab3IdenticalCells CCPATH=g++"
+make PROG=lab3IdenticalCells CCPATH=g++
 
 if [ $? -ne 0 ]; then
     echo ""
@@ -49,11 +49,11 @@ echo "Compilation successful!"
 echo ""
 
 # Step 4: Run the program
-echo "Step 4: Running lab3..."
+echo "Step 4: Running lab3IdenticalCells..."
 echo "=========================================="
 echo ""
-./lab3
+./lab3IdenticalCells
 echo ""
 echo "=========================================="
-echo "Lab 3 execution complete!"
+echo "Lab 3 identical-cell evaluation complete!"
 echo "=========================================="

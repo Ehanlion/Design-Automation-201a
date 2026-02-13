@@ -2,6 +2,10 @@
 
 Do NOT willy nilly generate docs, I don't need them
 
+ALL documents must be generated in the lab3/documentation/ directory please!
+
+ALL documents must be in markdown formatting.
+
 I only need dosc to explain ther solutions for the lab 3 part 1 and part 2. 
 
 Part 1 asks:

@@ -1,0 +1,78 @@
+EE 201A Lab 3 Report
+Ethan Owen (UID: 905452983)
+==========================================
+
+PROBLEM 1: Total HPWL Calculation
+----------------------------------
+
+Algorithm Description:
+The algorithm computes the total Half-Perimeter Wirelength (HPWL) for ALL nets in the design, including power, ground, clock, and signal nets. Unlike Lab 1 which filtered certain net types, Lab 3 considers every net in the design.
+
+For each net:
+1. Count all terminals (both instance terminals and primary I/O terminals)
+2. If the net has 2 or more terminals, compute its HPWL using the bounding box method
+3. For nets with 0 or 1 terminal, HPWL is 0 (no wire needed)
+
+HPWL Calculation Method:
+- For each terminal, determine its location
+  - Primary I/O terminals: use the pin figure bounding box
+  - Instance terminals: use the center point of the instance
+- Compute the bounding box that encompasses all terminal locations
+- HPWL = (max_x - min_x) + (max_y - min_y)
+
+Results:
+- Total nets in design: 324
+- Total HPWL: 5,603,470 DBU
+
+Assumptions:
+- All nets are included (power, ground, clock, signal)
+- Nets with fewer than 2 terminals contribute 0 to total HPWL
+- For instance terminals, the center of the instance bounding box approximates the connection point
+
+
+PROBLEM 2: Incremental Placement Algorithm
+-------------------------------------------
+
+Algorithm Approach:
+A greedy iterative improvement algorithm optimized for runtime performance. The scoring metric is HPWL² × Time, so minimizing execution time is prioritized while achieving modest HPWL reduction.
+
+Algorithm Steps:
+1. Group all instances by cell type and orientation (only identical cells with same orientation can be swapped per lab requirements)
+
+2. For each iteration (max 2 iterations):
+   a. Evaluate a subset of instance pairs within each group
+   b. For each candidate pair:
+      - Calculate the HPWL change (delta) if these instances were swapped
+      - Track the best (most negative) delta found
+   c. If a beneficial swap is found (negative delta):
+      - Swap the two instances by exchanging their locations
+      - Lock both instances to prevent re-swapping
+   d. Repeat until no beneficial swaps are found or iteration limit reached
+
+Optimization for Runtime:
+- Limit pairs evaluated per iteration: 3000 max
+- Sample pairs in large instance groups rather than checking all combinations
+- Use only 2 iterations (vs. exhaustive search)
+- Only lock swapped instances (not all connected neighbors)
+- Early termination when no improvements found
+
+Swap Implementation:
+- Extract current transforms (position + orientation) of both instances
+- Create new transforms with swapped positions but maintaining original orientations
+- Apply transforms using OpenAccess setTransform() API
+
+Results:
+- Original HPWL: 5,603,470 DBU
+- Final HPWL: 5,602,710 DBU
+- HPWL Reduction: 760 DBU (0.01%)
+- Number of swaps: 2
+- Execution time: ~0.67 seconds
+- Score (HPWL² × Time): ~2.1e13
+
+Key Design Decisions:
+1. Prioritized runtime over HPWL reduction to minimize score
+2. Used sampling strategy to avoid O(n²) pair evaluations
+3. Limited iterations to prevent excessive runtime
+4. Used minimal locking strategy to allow more swap opportunities
+
+The algorithm achieves a balance between achieving some HPWL improvement and maintaining fast execution time for a competitive overall score.

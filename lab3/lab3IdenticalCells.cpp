@@ -15,6 +15,7 @@
 #include <climits>
 #include <iomanip>
 #include <iostream>
+#include <map>
 #include <string>
 #include <sys/time.h>
 #include <utility>
@@ -276,8 +277,6 @@ int main(int argc, char* argv[]) {
 		struct timeval end;
 		gettimeofday(&start, NULL);
 
-		const size_t maxPairsToPrintPerNet = 20;
-
 		int totalNets = 0;
 		int netsWithLegalPairs = 0;
 		int totalLegalPairs = 0;
@@ -314,47 +313,46 @@ int main(int argc, char* argv[]) {
 				instances.push_back(info);
 			}
 
-			vector<pair<int, int> > legalPairs;
+			int legalPairCount = 0;
+			map<int, int> orientationPairCounts;
 			for (int i = 0; i < static_cast<int>(instances.size()); i++) {
 				for (int j = i + 1; j < static_cast<int>(instances.size()); j++) {
 					if (sameCellAndOrient(instances[i], instances[j])) {
-						legalPairs.push_back(make_pair(i, j));
+						legalPairCount++;
+						int orientVal =
+							static_cast<int>((oaOrientEnum)instances[i].orient);
+						orientationPairCounts[orientVal]++;
 					}
 				}
 			}
 
-			if (legalPairs.empty()) {
+			if (legalPairCount == 0) {
 				continue;
 			}
 
 			netsWithLegalPairs++;
-			totalLegalPairs += static_cast<int>(legalPairs.size());
+			totalLegalPairs += legalPairCount;
 
 			oaString netName;
 			net->getName(ns, netName);
 			string netNameStd = string((const char*)netName);
 
-			if (static_cast<int>(legalPairs.size()) > maxPairsOnSingleNet) {
-				maxPairsOnSingleNet = static_cast<int>(legalPairs.size());
+			if (legalPairCount > maxPairsOnSingleNet) {
+				maxPairsOnSingleNet = legalPairCount;
 				maxPairNetName = netNameStd;
 			}
 
-			cout << "Net: " << netNameStd << "  legalPairs="
-				 << legalPairs.size() << endl;
-
-			size_t pairsToPrint = min(legalPairs.size(), maxPairsToPrintPerNet);
-			for (size_t k = 0; k < pairsToPrint; k++) {
-				const InstInfo& a = instances[legalPairs[k].first];
-				const InstInfo& b = instances[legalPairs[k].second];
-				cout << "  " << a.instName << " <-> " << b.instName
-					 << "  cell=" << a.cellName
-					 << "  orient=" << static_cast<int>((oaOrientEnum)a.orient)
-					 << endl;
+			cout << "Net: " << netNameStd << "  legalPairs=" << legalPairCount
+				 << "  orientations=";
+			bool firstOrientation = true;
+			for (const auto& entry : orientationPairCounts) {
+				if (!firstOrientation) {
+					cout << ",";
+				}
+				cout << entry.first << ":" << entry.second;
+				firstOrientation = false;
 			}
-			if (legalPairs.size() > maxPairsToPrintPerNet) {
-				cout << "  ... " << (legalPairs.size() - maxPairsToPrintPerNet)
-					 << " additional legal pairs not shown" << endl;
-			}
+			cout << endl;
 		}
 
 		gettimeofday(&end, NULL);

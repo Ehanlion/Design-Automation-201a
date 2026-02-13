@@ -470,6 +470,197 @@ double performGreedyPlacement(oaBlock* block, int& numSwaps) {
 }
 
 // ==========================================================================
+// Smart incremental placement: signal-net-only eval, no neighbor locking
+// ==========================================================================
+double performSmartPlacement(oaBlock* block, int& numSwaps) {
+	numSwaps = 0;
+
+	// Build cache (one-time OA pass)
+	vector<oaInst*> allInsts;
+	unordered_map<oaInst*, int> instIndex;
+	vector<oaInt4> cacheX, cacheY;
+	vector<CachedNet> cachedNets;
+	vector<vector<int>> instToNets;
+	unordered_map<string, vector<int>> instGroups;
+
+	buildCache(block, allInsts, instIndex, cacheX, cacheY,
+			   cachedNets, instToNets, instGroups);
+
+	int numInsts = allInsts.size();
+	int numNets = cachedNets.size();
+
+	// ---- Classify nets: skip power, ground, clock, reset, unconnected ----
+	vector<bool> isSignalNet(numNets, true);
+	int skippedNetCount = 0;
+	{
+		int netIdx = 0;
+		oaIter<oaNet> netIter(block->getNets());
+		while (oaNet* net = netIter.getNext()) {
+			oaString netName;
+			net->getName(ns, netName);
+			string name((const char*)netName);
+			if (name == "VSS" || name == "VDD" ||
+				name == "blif_clk_net" || name == "blif_reset_net" ||
+				name.find("UNCONNECTED") == 0) {
+				isSignalNet[netIdx] = false;
+				skippedNetCount++;
+			}
+			netIdx++;
+		}
+	}
+	cout << "Problem 2 -- Signal nets: " << (numNets - skippedNetCount)
+		 << " (skipped " << skippedNetCount
+		 << " power/gnd/clk/reset/unconnected)" << endl;
+
+	// ---- Build signal-only instToNets ----
+	vector<vector<int>> signalInstToNets(numInsts);
+	for (int i = 0; i < numInsts; i++) {
+		for (int nid : instToNets[i]) {
+			if (isSignalNet[nid]) {
+				signalInstToNets[i].push_back(nid);
+			}
+		}
+	}
+
+	// ---- Prune groups: only instances with signal net connections ----
+	unordered_map<string, vector<int>> signalGroups;
+	int prunedInsts = 0;
+	for (auto& pair : instGroups) {
+		vector<int> pruned;
+		for (int idx : pair.second) {
+			if (!signalInstToNets[idx].empty()) {
+				pruned.push_back(idx);
+			} else {
+				prunedInsts++;
+			}
+		}
+		if (pruned.size() >= 2) {
+			signalGroups[pair.first] = move(pruned);
+		}
+	}
+
+	int totalPairs = 0;
+	for (auto& pair : signalGroups) {
+		int sz = pair.second.size();
+		totalPairs += sz * (sz - 1) / 2;
+	}
+	cout << "Problem 2 -- Signal groups: " << signalGroups.size()
+		 << ", candidate pairs: " << totalPairs
+		 << " (pruned " << prunedInsts << " non-signal instances)" << endl;
+
+	// ---- Batch-greedy: evaluate all pairs once, commit best non-conflicting ----
+	// Then one verification pass for residual improvements.
+	// This is faster than iterative (1-2 passes vs 3) while finding the same swaps.
+	vector<bool> visited(numNets, false);
+
+	// Pass 1: evaluate all pairs, collect improving swaps
+	struct SwapCandidate { long long delta; int a, b; };
+	vector<SwapCandidate> candidates;
+	candidates.reserve(64);
+
+	for (auto& gpair : signalGroups) {
+		vector<int>& group = gpair.second;
+		for (size_t i = 0; i < group.size(); i++) {
+			for (size_t j = i + 1; j < group.size(); j++) {
+				long long delta = computeSwapDelta(
+					group[i], group[j],
+					cachedNets, cacheX, cacheY,
+					signalInstToNets, visited);
+				if (delta < 0) {
+					candidates.push_back({delta, group[i], group[j]});
+				}
+			}
+		}
+	}
+
+	// Sort by delta (most negative = best improvement first)
+	sort(candidates.begin(), candidates.end(),
+		 [](const SwapCandidate& a, const SwapCandidate& b) {
+			 return a.delta < b.delta;
+		 });
+
+	// Greedily commit non-conflicting swaps
+	vector<bool> used(numInsts, false);
+	for (auto& c : candidates) {
+		if (used[c.a] || used[c.b]) continue;
+
+		// Commit swap in cache
+		swap(cacheX[c.a], cacheX[c.b]);
+		swap(cacheY[c.a], cacheY[c.b]);
+
+		// Apply swap in OA database
+		oaTransform xfA, xfB;
+		allInsts[c.a]->getTransform(xfA);
+		allInsts[c.b]->getTransform(xfB);
+		oaPoint oA(xfA.xOffset(), xfA.yOffset());
+		oaPoint oB(xfB.xOffset(), xfB.yOffset());
+		allInsts[c.a]->setTransform(
+			oaTransform(oB, allInsts[c.a]->getOrient()));
+		allInsts[c.b]->setTransform(
+			oaTransform(oA, allInsts[c.b]->getOrient()));
+
+		used[c.a] = used[c.b] = true;
+		numSwaps++;
+	}
+
+	cout << "Problem 2 -- Batch pass swaps: " << numSwaps << endl;
+
+	// Pass 2: one verification/cleanup pass for residual improvements
+	int residualSwaps = 0;
+	bool improved = true;
+	while (improved) {
+		improved = false;
+		long long bestDelta = 0;
+		int bestA = -1, bestB = -1;
+
+		for (auto& gpair : signalGroups) {
+			vector<int>& group = gpair.second;
+			for (size_t i = 0; i < group.size(); i++) {
+				for (size_t j = i + 1; j < group.size(); j++) {
+					long long delta = computeSwapDelta(
+						group[i], group[j],
+						cachedNets, cacheX, cacheY,
+						signalInstToNets, visited);
+					if (delta < bestDelta) {
+						bestDelta = delta;
+						bestA = group[i];
+						bestB = group[j];
+					}
+				}
+			}
+		}
+
+		if (bestA >= 0 && bestDelta < 0) {
+			swap(cacheX[bestA], cacheX[bestB]);
+			swap(cacheY[bestA], cacheY[bestB]);
+			oaTransform xfA, xfB;
+			allInsts[bestA]->getTransform(xfA);
+			allInsts[bestB]->getTransform(xfB);
+			oaPoint oA(xfA.xOffset(), xfA.yOffset());
+			oaPoint oB(xfB.xOffset(), xfB.yOffset());
+			allInsts[bestA]->setTransform(
+				oaTransform(oB, allInsts[bestA]->getOrient()));
+			allInsts[bestB]->setTransform(
+				oaTransform(oA, allInsts[bestB]->getOrient()));
+			numSwaps++;
+			residualSwaps++;
+			improved = true;
+		}
+	}
+
+	if (residualSwaps > 0) {
+		cout << "Problem 2 -- Residual pass swaps: " << residualSwaps << endl;
+	}
+
+	// ---- Compute final total HPWL from cache (ALL nets) ----
+	long long totalHPWL = 0;
+	for (size_t i = 0; i < cachedNets.size(); i++) {
+		totalHPWL += cachedNetHPWL(cachedNets[i], cacheX, cacheY);
+	}
+	return (double)totalHPWL;
+}
+
+// ==========================================================================
 // printDesignNames()
 // ==========================================================================
 void printDesignNames(oaDesign* design) {
@@ -589,7 +780,7 @@ int main(int argc, char* argv[]) {
 		gettimeofday(&start, NULL);
 
 		int numSwaps = 0;
-		double finalHPWL = performGreedyPlacement(block, numSwaps);
+		double finalHPWL = performSmartPlacement(block, numSwaps);
 
 		gettimeofday(&end, NULL);
 		double time_taken = (end.tv_sec - start.tv_sec) * 1e6;

@@ -14,13 +14,11 @@ if [ ! -f "lab1_setup" ]; then
     echo "ERROR: lab1_setup not found in $LAB3_DIR"
     exit 1
 fi
+# shellcheck disable=SC1091
 source lab1_setup
 
-# Ensure OA database is set up
-if [ ! -d "DesignLib" ]; then
-    echo "DesignLib not found - running setup first ..."
-    "$SCRIPT_DIR/setup_oa_database.sh" || exit 1
-fi
+# Always rebuild OA database before Part 2 runs to avoid cross-run contamination.
+"$SCRIPT_DIR/ensure_oa_database.sh" --force
 
 if [ ! -s "lab3_p2_greedy_lock.cpp" ]; then
     echo "ERROR: lab3_p2_greedy_lock.cpp not found or empty!"

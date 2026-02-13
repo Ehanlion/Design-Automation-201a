@@ -15,13 +15,16 @@ if [ ! -f "lab1_setup" ]; then
     echo "ERROR: lab1_setup not found in $LAB3_DIR"
     exit 1
 fi
+# shellcheck disable=SC1091
 source lab1_setup
 
-# Check if executable exists
-if [ ! -x "./lab3" ]; then
-    echo "ERROR: lab3 executable not found!"
-    echo "Please run ./scripts/compile.sh first to compile the program."
-    exit 1
+# Ensure OA database exists and matches current LEF/Verilog/DEF inputs.
+"$SCRIPT_DIR/ensure_oa_database.sh"
+
+# Recompile automatically when executable is missing/outdated.
+if [ ! -x "./lab3" ] || [ "lab3.cpp" -nt "lab3" ] || [ "Makefile" -nt "lab3" ]; then
+    echo "lab3 executable is missing or stale - compiling first ..."
+    "$SCRIPT_DIR/compile.sh"
 fi
 
 # Run the program

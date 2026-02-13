@@ -15,13 +15,11 @@ if [ ! -f "lab1_setup" ]; then
     echo "ERROR: lab1_setup not found in $LAB3_DIR"
     exit 1
 fi
+# shellcheck disable=SC1091
 source lab1_setup
 
-# Ensure OA database is set up (needed before running lab3)
-if [ ! -d "DesignLib" ]; then
-    echo "DesignLib not found - running setup first ..."
-    "$SCRIPT_DIR/setup_oa_database.sh" || exit 1
-fi
+# Ensure OA database exists and matches current LEF/Verilog/DEF inputs.
+"$SCRIPT_DIR/ensure_oa_database.sh"
 
 # Check if source file exists and is non-empty
 if [ ! -s "lab3.cpp" ]; then

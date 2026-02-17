@@ -77,10 +77,12 @@ static inline int countNetEndpoints(oaNet* net) {
 // Keep this as the single source of truth for both:
 // 1) what the algorithm skips, and
 // 2) excluded-HPWL reporting in main().
-static inline bool isExcludedNetForProblem2(const string& name) {
-	return (name == "VSS" || name == "VDD" ||
-			name == "blif_clk_net" || name == "blif_reset_net" ||
-			name.find("UNCONNECTED") == 0);
+static inline bool isExcludedNetForProblem2(const char* name) {
+	return (strcmp(name, "VSS") == 0 ||
+			strcmp(name, "VDD") == 0 ||
+			strcmp(name, "blif_clk_net") == 0 ||
+			strcmp(name, "blif_reset_net") == 0 ||
+			strncmp(name, "UNCONNECTED", 11) == 0);
 }
 
 // ==========================================================================
@@ -234,9 +236,8 @@ double computeAlgoExcludedHPWL(oaBlock* block, int& excludedNetsCount) {
 	while (oaNet* net = netIterator.getNext()) {
 		oaString netName;
 		net->getName(ns, netName);
-		string name((const char*)netName);
 
-		if (!isExcludedNetForProblem2(name))
+		if (!isExcludedNetForProblem2((const char*)netName))
 			continue;
 
 		excludedHPWL += computeHPWLForNet(net);
@@ -256,7 +257,10 @@ void buildCache(oaBlock* block,
 				vector<oaInt4>& cacheY,
 				vector<CachedNet>& cachedNets,
 				vector<vector<int>>& instToNets,
-				unordered_map<string, vector<int>>& instGroups) {
+				unordered_map<string, vector<int>>& instGroups,
+				vector<char>* signalNetMask = nullptr,
+				vector<vector<int>>* signalInstToNets = nullptr,
+				bool buildAllInstToNets = true) {
 
 	// Pass 1: Index all instances, cache centers, build groups
 	oaIter<oaInst> instIter(block->getInsts());
@@ -277,11 +281,28 @@ void buildCache(oaBlock* block,
 		instGroups[key].push_back(idx);
 	}
 
-	instToNets.resize(allInsts.size());
+	instToNets.clear();
+	if (buildAllInstToNets) {
+		instToNets.resize(allInsts.size());
+	}
+	if (signalNetMask) {
+		signalNetMask->clear();
+	}
+	if (signalInstToNets) {
+		signalInstToNets->clear();
+		signalInstToNets->resize(allInsts.size());
+	}
 
 	// Pass 2: Build net info with fixed pin bounds and instance indices
 	oaIter<oaNet> netIter(block->getNets());
 	while (oaNet* net = netIter.getNext()) {
+		bool isSignal = true;
+		if (signalNetMask || signalInstToNets) {
+			oaString netName;
+			net->getName(ns, netName);
+			isSignal = !isExcludedNetForProblem2((const char*)netName);
+		}
+
 		CachedNet cn;
 		cn.hasFixedPins = false;
 		cn.fixedMinX = INT_MAX;
@@ -289,18 +310,34 @@ void buildCache(oaBlock* block,
 		cn.fixedMinY = INT_MAX;
 		cn.fixedMaxY = INT_MIN;
 
-		// Count endpoints first to determine method.
-		int endpointCount = countNetEndpoints(net);
-		bool useFullBBox = (endpointCount > 2);
-
-		// Primary I/O terminals (fixed coordinates)
+		// Collect terminal geometry and endpoint count in one pass.
+		int termCount = 0;
+		vector<oaBox> termBoxes;
+		termBoxes.reserve(4);
 		oaIter<oaTerm> termIter(net->getTerms());
 		while (oaTerm* term = termIter.getNext()) {
+			termCount++;
 			oaBox termBox;
 			if (!getTermEndpointBox(term, termBox)) {
 				continue;
 			}
+			termBoxes.push_back(termBox);
+		}
 
+		// Collect instance endpoints in one pass.
+		int instTermCount = 0;
+		oaIter<oaInstTerm> itIter(net->getInstTerms());
+		while (oaInstTerm* it = itIter.getNext()) {
+			instTermCount++;
+			oaInst* inst = it->getInst();
+			auto found = instIndex.find(inst);
+			if (found != instIndex.end()) {
+				cn.instIndices.push_back(found->second);
+			}
+		}
+
+		bool useFullBBox = ((termCount + instTermCount) > 2);
+		for (const oaBox& termBox : termBoxes) {
 			cn.hasFixedPins = true;
 			if (useFullBBox) {
 				// For nets with >2 endpoints: use full bounding box.
@@ -333,21 +370,19 @@ void buildCache(oaBlock* block,
 			}
 		}
 
-		// Instance terminals
-		oaIter<oaInstTerm> itIter(net->getInstTerms());
-		while (oaInstTerm* it = itIter.getNext()) {
-			oaInst* inst = it->getInst();
-			auto found = instIndex.find(inst);
-			if (found != instIndex.end()) {
-				cn.instIndices.push_back(found->second);
-			}
-		}
-
 		int netIdx = cachedNets.size();
 		cachedNets.push_back(cn);
 
 		for (int idx : cn.instIndices) {
-			instToNets[idx].push_back(netIdx);
+			if (buildAllInstToNets) {
+				instToNets[idx].push_back(netIdx);
+			}
+			if (signalInstToNets && isSignal) {
+				(*signalInstToNets)[idx].push_back(netIdx);
+			}
+		}
+		if (signalNetMask) {
+			signalNetMask->push_back(isSignal ? 1 : 0);
 		}
 	}
 }
@@ -469,15 +504,11 @@ double performGreedyPlacement(oaBlock* block, int& numSwaps) {
 			swap(cacheY[bestA], cacheY[bestB]);
 
 			// Apply swap in OA database
-			oaTransform xfA, xfB;
-			allInsts[bestA]->getTransform(xfA);
-			allInsts[bestB]->getTransform(xfB);
-			oaPoint oA(xfA.xOffset(), xfA.yOffset());
-			oaPoint oB(xfB.xOffset(), xfB.yOffset());
-			allInsts[bestA]->setTransform(
-				oaTransform(oB, allInsts[bestA]->getOrient()));
-			allInsts[bestB]->setTransform(
-				oaTransform(oA, allInsts[bestB]->getOrient()));
+			oaPoint oA, oB;
+			allInsts[bestA]->getOrigin(oA);
+			allInsts[bestB]->getOrigin(oB);
+			allInsts[bestA]->setOrigin(oB);
+			allInsts[bestB]->setOrigin(oA);
 
 			// Lock swapped instances + all connected instances
 			locked[bestA] = true;
@@ -506,7 +537,6 @@ double performGreedyPlacement(oaBlock* block, int& numSwaps) {
 // Smart incremental placement: signal-net-only eval, no neighbor locking
 // ==========================================================================
 double performSmartPlacement(oaBlock* block, int& numSwaps) {
-	cout << endl << "----- Executing Smart Placement Algorithm -----" << endl;
 	numSwaps = 0;
 
 	// Build cache (one-time OA pass)
@@ -516,65 +546,35 @@ double performSmartPlacement(oaBlock* block, int& numSwaps) {
 	vector<CachedNet> cachedNets;
 	vector<vector<int>> instToNets;
 	unordered_map<string, vector<int>> instGroups;
+	vector<vector<int>> signalInstToNets;
 
 	buildCache(block, allInsts, instIndex, cacheX, cacheY,
-			   cachedNets, instToNets, instGroups);
+			   cachedNets, instToNets, instGroups,
+			   nullptr, &signalInstToNets, false);
 
 	int numInsts = allInsts.size();
 	int numNets = cachedNets.size();
 
-	// ---- Classify nets based on the exact Problem 2 exclusion list ----
-	vector<bool> isSignalNet(numNets, true);
-	int skippedNetCount = 0;
-	{
-		int netIdx = 0;
-		oaIter<oaNet> netIter(block->getNets());
-		while (oaNet* net = netIter.getNext()) {
-			oaString netName;
-			net->getName(ns, netName);
-			string name((const char*)netName);
-			if (isExcludedNetForProblem2(name)) {
-				isSignalNet[netIdx] = false;
-				skippedNetCount++;
-			}
-			netIdx++;
-		}
-	}
-	cout << "Nets: " << (numNets - skippedNetCount) << ", skipped: " << skippedNetCount << endl;
-
-	// ---- Build signal-only instToNets ----
-	vector<vector<int>> signalInstToNets(numInsts);
-	for (int i = 0; i < numInsts; i++) {
-		for (int nid : instToNets[i]) {
-			if (isSignalNet[nid]) {
-				signalInstToNets[i].push_back(nid);
-			}
-		}
-	}
-
 	// ---- Prune groups: only instances with signal net connections ----
-	unordered_map<string, vector<int>> signalGroups;
-	int prunedInsts = 0;
+	vector<vector<int>> signalGroups;
+	signalGroups.reserve(instGroups.size());
 	for (auto& pair : instGroups) {
 		vector<int> pruned;
 		for (int idx : pair.second) {
 			if (!signalInstToNets[idx].empty()) {
 				pruned.push_back(idx);
-			} else {
-				prunedInsts++;
 			}
 		}
 		if (pruned.size() >= 2) {
-			signalGroups[pair.first] = std::move(pruned);
+			signalGroups.push_back(std::move(pruned));
 		}
 	}
 
 	int totalPairs = 0;
-	for (auto& pair : signalGroups) {
-		int sz = pair.second.size();
+	for (auto& group : signalGroups) {
+		int sz = group.size();
 		totalPairs += sz * (sz - 1) / 2;
 	}
-	cout << "Groups: " << signalGroups.size() << ", candidate pairs: " << totalPairs << ", pruned " << prunedInsts << endl;
 
 	// ---- Batch-greedy: evaluate all pairs once, commit best non-conflicting ----
 	// Then one verification pass for residual improvements.
@@ -587,10 +587,9 @@ double performSmartPlacement(oaBlock* block, int& numSwaps) {
 		int a, b;
 	};
 	vector<SwapCandidate> candidates;
-	candidates.reserve(64);
+	candidates.reserve(totalPairs);
 
-	for (auto& gpair : signalGroups) {
-		vector<int>& group = gpair.second;
+	for (auto& group : signalGroups) {
 		for (size_t i = 0; i < group.size(); i++) {
 			for (size_t j = i + 1; j < group.size(); j++) {
 				long long delta = computeSwapDelta(
@@ -621,69 +620,14 @@ double performSmartPlacement(oaBlock* block, int& numSwaps) {
 		swap(cacheY[c.a], cacheY[c.b]);
 
 		// Apply swap in OA database
-		oaTransform xfA, xfB;
-		allInsts[c.a]->getTransform(xfA);
-		allInsts[c.b]->getTransform(xfB);
-		oaPoint oA(xfA.xOffset(), xfA.yOffset());
-		oaPoint oB(xfB.xOffset(), xfB.yOffset());
-		allInsts[c.a]->setTransform(
-			oaTransform(oB, allInsts[c.a]->getOrient()));
-		allInsts[c.b]->setTransform(
-			oaTransform(oA, allInsts[c.b]->getOrient()));
+		oaPoint oA, oB;
+		allInsts[c.a]->getOrigin(oA);
+		allInsts[c.b]->getOrigin(oB);
+		allInsts[c.a]->setOrigin(oB);
+		allInsts[c.b]->setOrigin(oA);
 
 		used[c.a] = used[c.b] = true;
 		numSwaps++;
-	}
-
-	cout << "Batch Swaps Used: " << numSwaps << endl;
-
-	// Pass 2: one verification/cleanup pass for residual improvements
-	int residualSwaps = 0;
-	bool improved = true;
-	while (improved) {
-		improved = false;
-		long long bestDelta = 0;
-		int bestA = -1, bestB = -1;
-
-		for (auto& gpair : signalGroups) {
-			vector<int>& group = gpair.second;
-			for (size_t i = 0; i < group.size(); i++) {
-				for (size_t j = i + 1; j < group.size(); j++) {
-					long long delta = computeSwapDelta(
-						group[i], group[j],
-						cachedNets, cacheX, cacheY,
-						signalInstToNets, visited);
-					if (delta < bestDelta) {
-						bestDelta = delta;
-						bestA = group[i];
-						bestB = group[j];
-					}
-				}
-			}
-		}
-
-		if (bestA >= 0 && bestDelta < 0) {
-			swap(cacheX[bestA], cacheX[bestB]);
-			swap(cacheY[bestA], cacheY[bestB]);
-			oaTransform xfA, xfB;
-			allInsts[bestA]->getTransform(xfA);
-			allInsts[bestB]->getTransform(xfB);
-			oaPoint oA(xfA.xOffset(), xfA.yOffset());
-			oaPoint oB(xfB.xOffset(), xfB.yOffset());
-			allInsts[bestA]->setTransform(
-				oaTransform(oB, allInsts[bestA]->getOrient()));
-			allInsts[bestB]->setTransform(
-				oaTransform(oA, allInsts[bestB]->getOrient()));
-			numSwaps++;
-			residualSwaps++;
-			improved = true;
-		}
-	}
-
-	if (residualSwaps > 0) {
-		cout << "Residual Swaps Used:" << residualSwaps << endl;
-	} else {
-		cout << "No residual swaps used" << endl;
 	}
 
 	// ---- Compute final total HPWL from cache (ALL nets) ----
@@ -691,7 +635,6 @@ double performSmartPlacement(oaBlock* block, int& numSwaps) {
 	for (size_t i = 0; i < cachedNets.size(); i++) {
 		totalHPWL += cachedNetHPWL(cachedNets[i], cacheX, cacheY);
 	}
-	cout <<  "----- Finished Executing Smart Placement Algorithm -----" << endl << endl;
 	return (double)totalHPWL;
 }
 
@@ -841,10 +784,10 @@ int main(int argc, char* argv[]) {
 		// Summary output (required format)
 		cout << endl;
 		cout << "Summary of outputs:" << endl;
-		cout << "Problem 1 -- Total wirelength of original design: " << totalHPWL << endl;
-		cout << "Problem 2 -- Total wirelength AFTER my incremental placement algorithm: " << finalHPWL << endl;
+		cout << "Problem 1 -- Total wirelength of original design: " << fixed << setprecision(0) << totalHPWL << endl;
+		cout << "Problem 2 -- Total wirelength AFTER my incremental placement algorithm: " << fixed << setprecision(0) << finalHPWL << endl;
 		cout << "Problem 2 -- Total number of swaps used: " << numSwaps << endl;
-		cout << "Problem 2 -- Time taken: " << fixed << setprecision(6) <<time_taken << " sec" << endl;
+		cout << "Problem 2 -- Time taken: " << fixed << setprecision(6) << time_taken << " sec" << endl;
 
 		design->close();
 		lib->close();

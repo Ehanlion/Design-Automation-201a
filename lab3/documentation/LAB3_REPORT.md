@@ -34,30 +34,73 @@ For each net:
 
 ### Algorithm Approach
 
-A signal-net-focused batch-greedy swap algorithm. The scoring metric is HPWL^2 x Time, so the algorithm is designed for both quality and speed: skip irrelevant nets, prune irrelevant cells, evaluate all candidate pairs in a single batch pass, and commit non-conflicting improving swaps in one shot.
+A signal-net-focused batch-greedy swap algorithm optimized for the score metric:
+
+\[
+\text{Score} = \text{HPWL}^2 \times \text{Time}
+\]
+
+The design goal is to keep HPWL improvement while reducing runtime as much as possible.
 
 ### Algorithm Steps
 
-1. **Build Cache** (single OA pass): Index all instances and cache center coordinates. Build per-net data structures with fixed pin bounds and instance indices. Group instances by (cell type, orientation) -- only identical cells with the same orientation may be swapped.
+1. **Build Cache (single OA traversal)**:
+   - Index all instances and cache center coordinates.
+   - Group instances by `(cell type, orientation)` so only legal swaps are considered.
+   - Build per-net cached structures (fixed-pin bounds + instance indices).
+   - For smart placement, directly build **signal-only** instance-to-net adjacency in the same pass.
 
-2. **Net Classification**: Classify all 324 nets as signal or non-signal. Skip power (VSS, VDD), clock (blif_clk_net), reset (blif_reset_net), and unconnected nets (UNCONNECTED*). Result: 305 signal nets, 19 skipped. These global nets span the entire chip and swapping cells cannot improve their HPWL. Excluding them avoids evaluating thousands of useless FILLER cell pairs and focuses optimization on signal quality.
+2. **Signal-Net Filtering**:
+   - Exclude `VSS`, `VDD`, `blif_clk_net`, `blif_reset_net`, and `UNCONNECTED*`.
+   - Signal-only adjacency avoids evaluating swaps driven only by global/power nets.
 
-3. **Instance Pruning**: Build a signal-only net adjacency list for each instance. Instances with zero signal net connections (e.g., FILLER cells that only connect to VDD/VSS) are pruned from swap groups entirely. Result: 196 non-signal instances pruned, leaving 58 signal groups with 767 candidate swap pairs.
+3. **Group Pruning**:
+   - Remove instances that have no signal-net connectivity.
+   - Keep only groups with at least two valid instances.
 
-4. **Batch-Greedy Evaluation**: Evaluate all 767 candidate pairs in a single pass. For each pair, compute the HPWL delta using only signal nets and cached coordinates (zero OA API calls). Collect all pairs with negative delta (improving swaps).
+4. **Batch Candidate Evaluation**:
+   - Evaluate all legal pairs inside each remaining group.
+   - Compute swap delta using cached coordinates only (no OA calls during delta eval).
+   - Keep only improving candidates (`delta < 0`).
 
-5. **Sorted Greedy Commit**: Sort improving candidates by delta (best first). Greedily commit non-conflicting swaps (mark used cells to avoid double-swapping in the same batch).
+5. **Sorted Greedy Commit**:
+   - Sort improving candidates by most-negative delta first.
+   - Commit non-conflicting swaps greedily (each instance used at most once per batch).
+   - Apply swap physically using origin exchange in OA.
 
-6. **Residual Verification**: One additional pairwise pass catches any residual improvements caused by inter-group interactions from the batch swaps.
-
-7. **OA Database Update**: For each committed swap, exchange the OA transforms (position offsets) of the two instances while preserving their orientations.
+6. **Final HPWL**:
+   - Recompute total HPWL from cached data over all nets.
 
 ### Key Design Decisions
 
-- **No neighbor locking**: The original greedy locked swapped cells AND all cells connected to their nets. Since VDD/VSS/clock nets connect to nearly every instance, one swap locked the entire design (only 1 swap was ever found). The new algorithm uses no locking, allowing the search to find all beneficial swaps.
-- **Signal-net-only evaluation**: Swap deltas are computed only over signal nets. Power/ground/clock bounding boxes span the full chip and are unaffected by local cell swaps. This dramatically reduces computation.
-- **Batch evaluation**: Instead of iterating (find best, commit, re-evaluate all, repeat), all pairs are evaluated once, sorted, and committed greedily. This reduces evaluation passes from 3 to ~1.5.
-- **Cached computation**: All HPWL calculations use pre-cached integer coordinates. No OA API calls during swap evaluation.
+- **No neighbor locking**: prevents over-constraining the search.
+- **Signal-net-only deltas**: avoids wasted work on non-informative global nets.
+- **Batch one-pass candidate evaluation**: minimizes repeated full pair rescans.
+- **Cached integer arithmetic**: OA API usage is limited to final committed swaps.
+
+### Optimizations (New)
+
+1. **Removed timed-region debug prints**:
+   - Extra console output inside `performSmartPlacement` was removed.
+   - This reduces overhead in the measured timing window.
+
+2. **Removed residual full verification pass**:
+   - Previous version re-scanned all candidate pairs after batch commits.
+   - Current version commits from the sorted improving set in one batch pass.
+
+3. **Single-pass net endpoint handling in cache build**:
+   - Endpoint counting and geometry extraction are done in one combined traversal.
+   - Avoids duplicate per-net term/instTerm scans.
+
+4. **Smart-path selective cache construction**:
+   - Smart placement now skips building full `instToNets` when unused.
+   - Builds only signal adjacency required by smart swap evaluation.
+
+5. **Faster excluded-net checks**:
+   - Replaced `std::string` construction with direct C-string checks (`strcmp/strncmp`).
+
+6. **Lower-overhead OA swap update**:
+   - Swaps use `getOrigin/setOrigin` instead of transform reconstruction.
 
 ### Results
 
@@ -65,15 +108,10 @@ A signal-net-focused batch-greedy swap algorithm. The scoring metric is HPWL^2 x
 - **Final HPWL**: 5,600,400 DBU
 - **HPWL Reduction**: 760 DBU (0.01%)
 - **Number of swaps**: 2
-- **Execution time**: ~0.0013 sec
-- **Score (HPWL^2 x Time)**: ~4.2e+10
+- **Execution time (single runs)**: typically ~0.0010 to 0.0011 sec
+- **Execution time (5-run median)**: ~0.001035 sec
+- **Score (5-run median)**: ~3.2462e+10
 
-### Score Comparison vs. Previous Greedy Approach
+### Runtime Note
 
-| Metric | Old Greedy | New Smart Placement |
-|--------|-----------|-------------------|
-| Final HPWL | 5,600,590 | 5,600,400 |
-| Swaps | 1 | 2 |
-| Time | 0.030 sec | 0.001 sec |
-| Score | 9.3e+11 | 4.2e+10 |
-| Improvement | -- | ~22x better |
+Server and load conditions cause run-to-run variation. Reported timing and score are based on repeated runs and median values for stability.

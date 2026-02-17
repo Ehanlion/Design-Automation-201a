@@ -395,245 +395,415 @@ static inline long long computeSwapDelta(
 	const vector<CachedNet>& nets,
 	vector<oaInt4>& cx, vector<oaInt4>& cy,
 	const vector<vector<int>>& instToNets,
-	vector<bool>& visited) {
+	vector<int>& seenNets, int& seenToken,
+	vector<int>& affectedNets) {
 
-	// Collect affected nets (deduplicated via visited flags)
-	// Use a small stack-allocated buffer for affected net IDs
-	int affBuf[256];
-	int affCount = 0;
+	if (seenToken == INT_MAX) {
+		fill(seenNets.begin(), seenNets.end(), 0);
+		seenToken = 1;
+	}
+	int token = seenToken++;
+
+	affectedNets.clear();
+	affectedNets.reserve(instToNets[a].size() + instToNets[b].size());
 
 	for (int nid : instToNets[a]) {
-		if (!visited[nid]) {
-			visited[nid] = true;
-			affBuf[affCount++] = nid;
+		if (seenNets[nid] != token) {
+			seenNets[nid] = token;
+			affectedNets.push_back(nid);
 		}
 	}
 	for (int nid : instToNets[b]) {
-		if (!visited[nid]) {
-			visited[nid] = true;
-			affBuf[affCount++] = nid;
+		if (seenNets[nid] != token) {
+			seenNets[nid] = token;
+			affectedNets.push_back(nid);
 		}
 	}
 
-	// Compute current HPWL for affected nets
 	long long currentHPWL = 0;
-	for (int k = 0; k < affCount; k++) {
-		currentHPWL += cachedNetHPWL(nets[affBuf[k]], cx, cy);
+	for (int nid : affectedNets) {
+		currentHPWL += cachedNetHPWL(nets[nid], cx, cy);
 	}
 
-	// Swap cached coordinates
 	swap(cx[a], cx[b]);
 	swap(cy[a], cy[b]);
 
-	// Compute new HPWL for affected nets
 	long long newHPWL = 0;
-	for (int k = 0; k < affCount; k++) {
-		newHPWL += cachedNetHPWL(nets[affBuf[k]], cx, cy);
+	for (int nid : affectedNets) {
+		newHPWL += cachedNetHPWL(nets[nid], cx, cy);
 	}
 
-	// Swap back
 	swap(cx[a], cx[b]);
 	swap(cy[a], cy[b]);
-
-	// Reset visited flags
-	for (int k = 0; k < affCount; k++) {
-		visited[affBuf[k]] = false;
-	}
 
 	return newHPWL - currentHPWL;
 }
 
-// ==========================================================================
-// Greedy incremental placement (fully cached, OA calls only for final swaps)
-// ==========================================================================
-double performGreedyPlacement(oaBlock* block, int& numSwaps) {
-	numSwaps = 0;
+struct NetEndpointSummary {
+	long long instSumX = 0;
+	long long instSumY = 0;
+	int instCount = 0;
+	bool hasFixed = false;
+	long long fixedCenterX = 0;
+	long long fixedCenterY = 0;
+};
 
-	// Build cache (one-time OA pass)
-	vector<oaInst*> allInsts;
-	unordered_map<oaInst*, int> instIndex;
-	vector<oaInt4> cacheX, cacheY;
-	vector<CachedNet> cachedNets;
-	vector<vector<int>> instToNets;
-	unordered_map<string, vector<int>> instGroups;
+struct BucketPoint {
+	int instIdx;
+	oaInt4 x;
+	oaInt4 y;
+};
 
-	buildCache(block, allInsts, instIndex, cacheX, cacheY,
-			   cachedNets, instToNets, instGroups);
+struct BucketKdNode {
+	int pointIdx = -1;
+	int left = -1;
+	int right = -1;
+	oaInt4 minX = 0;
+	oaInt4 maxX = 0;
+	oaInt4 minY = 0;
+	oaInt4 maxY = 0;
+	int axis = 0;
+};
 
-	int numInsts = allInsts.size();
-	vector<bool> locked(numInsts, false);
-	vector<bool> visited(cachedNets.size(), false);
+struct BucketKdTree {
+	vector<BucketPoint> points;
+	vector<BucketKdNode> nodes;
+	int root = -1;
+};
 
-	// Greedy loop: find best swap, commit it, lock, repeat
-	bool improvement = true;
-	while (improvement) {
-		improvement = false;
-		long long bestDelta = 0;
-		int bestA = -1, bestB = -1;
+static int buildBucketKdRec(BucketKdTree& tree, vector<int>& order,
+							int lo, int hi, int depth) {
+	if (lo >= hi) {
+		return -1;
+	}
 
-		for (auto& pair : instGroups) {
-			vector<int>& group = pair.second;
-			if (group.size() < 2)
-				continue;
+	int axis = depth & 1;
+	int mid = lo + ((hi - lo) / 2);
 
-			// Check ALL unlocked pairs (fast because we use cached data)
-			for (size_t i = 0; i < group.size(); i++) {
-				if (locked[group[i]])
-					continue;
-				for (size_t j = i + 1; j < group.size(); j++) {
-					if (locked[group[j]])
-						continue;
-
-					long long delta = computeSwapDelta(
-						group[i], group[j],
-						cachedNets, cacheX, cacheY,
-						instToNets, visited);
-
-					if (delta < bestDelta) {
-						bestDelta = delta;
-						bestA = group[i];
-						bestB = group[j];
+	nth_element(order.begin() + lo, order.begin() + mid, order.begin() + hi,
+				[&](int lhs, int rhs) {
+					if (axis == 0) {
+						if (tree.points[lhs].x == tree.points[rhs].x) {
+							return tree.points[lhs].y < tree.points[rhs].y;
+						}
+						return tree.points[lhs].x < tree.points[rhs].x;
 					}
-				}
-			}
-		}
+					if (tree.points[lhs].y == tree.points[rhs].y) {
+						return tree.points[lhs].x < tree.points[rhs].x;
+					}
+					return tree.points[lhs].y < tree.points[rhs].y;
+				});
 
-		if (bestA >= 0 && bestDelta < 0) {
-			// Commit swap in cache
-			swap(cacheX[bestA], cacheX[bestB]);
-			swap(cacheY[bestA], cacheY[bestB]);
+	int nodeIdx = tree.nodes.size();
+	tree.nodes.push_back(BucketKdNode());
 
-			// Apply swap in OA database
-			oaPoint oA, oB;
-			allInsts[bestA]->getOrigin(oA);
-			allInsts[bestB]->getOrigin(oB);
-			allInsts[bestA]->setOrigin(oB);
-			allInsts[bestB]->setOrigin(oA);
+	int left = buildBucketKdRec(tree, order, lo, mid, depth + 1);
+	int right = buildBucketKdRec(tree, order, mid + 1, hi, depth + 1);
 
-			// Lock swapped instances + all connected instances
-			locked[bestA] = true;
-			locked[bestB] = true;
-			for (int nid : instToNets[bestA])
-				for (int idx : cachedNets[nid].instIndices)
-					locked[idx] = true;
-			for (int nid : instToNets[bestB])
-				for (int idx : cachedNets[nid].instIndices)
-					locked[idx] = true;
+	const BucketPoint& p = tree.points[order[mid]];
+	BucketKdNode node;
+	node.pointIdx = order[mid];
+	node.left = left;
+	node.right = right;
+	node.axis = axis;
+	node.minX = node.maxX = p.x;
+	node.minY = node.maxY = p.y;
 
-			numSwaps++;
-			improvement = true;
+	if (left >= 0) {
+		const BucketKdNode& ln = tree.nodes[left];
+		node.minX = min(node.minX, ln.minX);
+		node.maxX = max(node.maxX, ln.maxX);
+		node.minY = min(node.minY, ln.minY);
+		node.maxY = max(node.maxY, ln.maxY);
+	}
+	if (right >= 0) {
+		const BucketKdNode& rn = tree.nodes[right];
+		node.minX = min(node.minX, rn.minX);
+		node.maxX = max(node.maxX, rn.maxX);
+		node.minY = min(node.minY, rn.minY);
+		node.maxY = max(node.maxY, rn.maxY);
+	}
+
+	tree.nodes[nodeIdx] = node;
+	return nodeIdx;
+}
+
+static void buildBucketKdTree(BucketKdTree& tree) {
+	tree.nodes.clear();
+	tree.root = -1;
+	if (tree.points.empty()) {
+		return;
+	}
+
+	vector<int> order(tree.points.size());
+	iota(order.begin(), order.end(), 0);
+	tree.nodes.reserve(tree.points.size());
+	tree.root = buildBucketKdRec(tree, order, 0, order.size(), 0);
+}
+
+static inline long long pointToNodeBoxDist2(const BucketKdNode& node,
+											long long tx, long long ty) {
+	long long dx = 0;
+	if (tx < node.minX) {
+		dx = (long long)node.minX - tx;
+	} else if (tx > node.maxX) {
+		dx = tx - (long long)node.maxX;
+	}
+
+	long long dy = 0;
+	if (ty < node.minY) {
+		dy = (long long)node.minY - ty;
+	} else if (ty > node.maxY) {
+		dy = ty - (long long)node.maxY;
+	}
+
+	return dx * dx + dy * dy;
+}
+
+static void nearestUnlockedInBucketRec(const BucketKdTree& tree, int nodeIdx,
+									   long long tx, long long ty,
+									   int excludeInst,
+									   const vector<char>& locked,
+									   int& bestInst, long long& bestDist2) {
+	if (nodeIdx < 0) {
+		return;
+	}
+
+	const BucketKdNode& node = tree.nodes[nodeIdx];
+	if (pointToNodeBoxDist2(node, tx, ty) > bestDist2) {
+		return;
+	}
+
+	const BucketPoint& p = tree.points[node.pointIdx];
+	if (p.instIdx != excludeInst && !locked[p.instIdx]) {
+		long long dx = (long long)p.x - tx;
+		long long dy = (long long)p.y - ty;
+		long long d2 = dx * dx + dy * dy;
+		if (d2 < bestDist2 || (d2 == bestDist2 &&
+							   (bestInst < 0 || p.instIdx < bestInst))) {
+			bestDist2 = d2;
+			bestInst = p.instIdx;
 		}
 	}
 
-	// Compute final total HPWL from cache
-	long long totalHPWL = 0;
-	for (size_t i = 0; i < cachedNets.size(); i++) {
-		totalHPWL += cachedNetHPWL(cachedNets[i], cacheX, cacheY);
+	int nearChild = node.left;
+	int farChild = node.right;
+	if (node.axis == 0) {
+		if (tx > p.x) {
+			nearChild = node.right;
+			farChild = node.left;
+		}
+	} else if (ty > p.y) {
+		nearChild = node.right;
+		farChild = node.left;
 	}
-	return (double)totalHPWL;
+
+	if (nearChild >= 0) {
+		nearestUnlockedInBucketRec(tree, nearChild, tx, ty, excludeInst,
+								   locked, bestInst, bestDist2);
+	}
+	if (farChild >= 0 &&
+		pointToNodeBoxDist2(tree.nodes[farChild], tx, ty) <= bestDist2) {
+		nearestUnlockedInBucketRec(tree, farChild, tx, ty, excludeInst,
+								   locked, bestInst, bestDist2);
+	}
+}
+
+static int findNearestUnlockedPartner(const BucketKdTree& tree,
+									  long long tx, long long ty,
+									  int excludeInst,
+									  const vector<char>& locked) {
+	if (tree.root < 0) {
+		return -1;
+	}
+
+	int bestInst = -1;
+	long long bestDist2 = LLONG_MAX;
+	nearestUnlockedInBucketRec(tree, tree.root, tx, ty, excludeInst,
+							   locked, bestInst, bestDist2);
+	return bestInst;
 }
 
 // ==========================================================================
-// Smart incremental placement: signal-net-only eval, no neighbor locking
+// Centroid-tension incremental placement (one pass, legal swap buckets)
 // ==========================================================================
-double performSmartPlacement(oaBlock* block, int& numSwaps) {
+double performCentroidTensionPlacement(oaBlock* block, int& numSwaps) {
 	numSwaps = 0;
 
-	// Build cache (one-time OA pass)
 	vector<oaInst*> allInsts;
 	unordered_map<oaInst*, int> instIndex;
 	vector<oaInt4> cacheX, cacheY;
 	vector<CachedNet> cachedNets;
 	vector<vector<int>> instToNets;
 	unordered_map<string, vector<int>> instGroups;
+	vector<char> signalNetMask;
 	vector<vector<int>> signalInstToNets;
 
 	buildCache(block, allInsts, instIndex, cacheX, cacheY,
 			   cachedNets, instToNets, instGroups,
-			   nullptr, &signalInstToNets, false);
+			   &signalNetMask, &signalInstToNets, false);
 
 	int numInsts = allInsts.size();
 	int numNets = cachedNets.size();
 
-	// ---- Prune groups: only instances with signal net connections ----
-	vector<vector<int>> signalGroups;
-	signalGroups.reserve(instGroups.size());
-	for (auto& pair : instGroups) {
-		vector<int> pruned;
-		for (int idx : pair.second) {
-			if (!signalInstToNets[idx].empty()) {
-				pruned.push_back(idx);
+	vector<NetEndpointSummary> netSummaries(numNets);
+	for (int nid = 0; nid < numNets; nid++) {
+		if (!signalNetMask[nid]) {
+			continue;
+		}
+		const CachedNet& net = cachedNets[nid];
+		NetEndpointSummary& summary = netSummaries[nid];
+		summary.instCount = net.instIndices.size();
+		for (int idx : net.instIndices) {
+			summary.instSumX += cacheX[idx];
+			summary.instSumY += cacheY[idx];
+		}
+		if (net.hasFixedPins) {
+			summary.hasFixed = true;
+			summary.fixedCenterX =
+				((long long)net.fixedMinX + (long long)net.fixedMaxX) / 2;
+			summary.fixedCenterY =
+				((long long)net.fixedMinY + (long long)net.fixedMaxY) / 2;
+		}
+	}
+
+	vector<double> centroidX(numInsts, 0.0);
+	vector<double> centroidY(numInsts, 0.0);
+	vector<long long> tension2(numInsts, 0);
+	vector<int> rankedInsts;
+	rankedInsts.reserve(numInsts);
+
+	for (int idx = 0; idx < numInsts; idx++) {
+		long double weightedSumX = 0.0;
+		long double weightedSumY = 0.0;
+		long long totalWeight = 0;
+
+		for (int nid : signalInstToNets[idx]) {
+			const NetEndpointSummary& summary = netSummaries[nid];
+			long long netSumX = summary.instSumX - cacheX[idx];
+			long long netSumY = summary.instSumY - cacheY[idx];
+			int netWeight = summary.instCount - 1;
+
+			if (summary.hasFixed) {
+				netSumX += summary.fixedCenterX;
+				netSumY += summary.fixedCenterY;
+				netWeight++;
 			}
-		}
-		if (pruned.size() >= 2) {
-			signalGroups.push_back(std::move(pruned));
-		}
-	}
 
-	int totalPairs = 0;
-	for (auto& group : signalGroups) {
-		int sz = group.size();
-		totalPairs += sz * (sz - 1) / 2;
-	}
-
-	// ---- Batch-greedy: evaluate all pairs once, commit best non-conflicting ----
-	// Then one verification pass for residual improvements.
-	// This is faster than iterative (1-2 passes vs 3) while finding the same swaps.
-	vector<bool> visited(numNets, false);
-
-	// Pass 1: evaluate all pairs, collect improving swaps
-	struct SwapCandidate {
-		long long delta;
-		int a, b;
-	};
-	vector<SwapCandidate> candidates;
-	candidates.reserve(totalPairs);
-
-	for (auto& group : signalGroups) {
-		for (size_t i = 0; i < group.size(); i++) {
-			for (size_t j = i + 1; j < group.size(); j++) {
-				long long delta = computeSwapDelta(
-					group[i], group[j],
-					cachedNets, cacheX, cacheY,
-					signalInstToNets, visited);
-				if (delta < 0) {
-					candidates.push_back({delta, group[i], group[j]});
-				}
+			if (netWeight <= 0) {
+				continue;
 			}
+
+			weightedSumX += netSumX;
+			weightedSumY += netSumY;
+			totalWeight += netWeight;
+		}
+
+		if (totalWeight > 0) {
+			centroidX[idx] = (double)(weightedSumX / (long double)totalWeight);
+			centroidY[idx] = (double)(weightedSumY / (long double)totalWeight);
+			long long dx = llround(centroidX[idx]) - (long long)cacheX[idx];
+			long long dy = llround(centroidY[idx]) - (long long)cacheY[idx];
+			tension2[idx] = dx * dx + dy * dy;
+			rankedInsts.push_back(idx);
+		} else {
+			centroidX[idx] = cacheX[idx];
+			centroidY[idx] = cacheY[idx];
 		}
 	}
 
-	// Sort by delta (most negative = best improvement first)
-	sort(candidates.begin(), candidates.end(),
-		 [](const SwapCandidate& a, const SwapCandidate& b) {
-			 return a.delta < b.delta;
+	sort(rankedInsts.begin(), rankedInsts.end(),
+		 [&](int a, int b) {
+			 if (tension2[a] != tension2[b]) {
+				 return tension2[a] > tension2[b];
+			 }
+			 return a < b;
 		 });
 
-	// Greedily commit non-conflicting swaps
-	vector<bool> used(numInsts, false);
-	for (auto& c : candidates) {
-		if (used[c.a] || used[c.b])
+	vector<vector<int>> typeBuckets;
+	typeBuckets.reserve(instGroups.size());
+	vector<int> instToBucket(numInsts, -1);
+
+	for (auto& groupPair : instGroups) {
+		if (groupPair.second.size() < 2) {
 			continue;
+		}
+		int bucketId = typeBuckets.size();
+		typeBuckets.push_back(groupPair.second);
+		for (int idx : groupPair.second) {
+			instToBucket[idx] = bucketId;
+		}
+	}
 
-		// Commit swap in cache
-		swap(cacheX[c.a], cacheX[c.b]);
-		swap(cacheY[c.a], cacheY[c.b]);
+	vector<BucketKdTree> bucketTrees(typeBuckets.size());
+	for (size_t b = 0; b < typeBuckets.size(); b++) {
+		BucketKdTree& tree = bucketTrees[b];
+		tree.points.reserve(typeBuckets[b].size());
+		for (int idx : typeBuckets[b]) {
+			tree.points.push_back({idx, cacheX[idx], cacheY[idx]});
+		}
+		buildBucketKdTree(tree);
+	}
 
-		// Apply swap in OA database
+	vector<char> locked(numInsts, 0);
+	vector<int> seenNets(numNets, 0);
+	vector<int> affectedNets;
+	int seenToken = 1;
+
+	struct timeval algoStart;
+	gettimeofday(&algoStart, NULL);
+
+	for (int a : rankedInsts) {
+		if (locked[a]) {
+			continue;
+		}
+
+		struct timeval now;
+		gettimeofday(&now, NULL);
+		double elapsedSec =
+			(now.tv_sec - algoStart.tv_sec) +
+			(now.tv_usec - algoStart.tv_usec) * 1e-6;
+		if (elapsedSec >= 300.0) {
+			break;
+		}
+
+		int bucketId = instToBucket[a];
+		if (bucketId < 0) {
+			continue;
+		}
+
+		long long targetX = llround(centroidX[a]);
+		long long targetY = llround(centroidY[a]);
+		int b = findNearestUnlockedPartner(
+			bucketTrees[bucketId], targetX, targetY, a, locked);
+		if (b < 0 || locked[b]) {
+			continue;
+		}
+
+		long long delta = computeSwapDelta(
+			a, b, cachedNets, cacheX, cacheY,
+			signalInstToNets, seenNets, seenToken, affectedNets);
+		if (delta >= 0) {
+			continue;
+		}
+
+		swap(cacheX[a], cacheX[b]);
+		swap(cacheY[a], cacheY[b]);
+
 		oaPoint oA, oB;
-		allInsts[c.a]->getOrigin(oA);
-		allInsts[c.b]->getOrigin(oB);
-		allInsts[c.a]->setOrigin(oB);
-		allInsts[c.b]->setOrigin(oA);
+		allInsts[a]->getOrigin(oA);
+		allInsts[b]->getOrigin(oB);
+		allInsts[a]->setOrigin(oB);
+		allInsts[b]->setOrigin(oA);
 
-		used[c.a] = used[c.b] = true;
+		locked[a] = 1;
+		locked[b] = 1;
 		numSwaps++;
 	}
 
-	// ---- Compute final total HPWL from cache (ALL nets) ----
 	long long totalHPWL = 0;
-	for (size_t i = 0; i < cachedNets.size(); i++) {
-		totalHPWL += cachedNetHPWL(cachedNets[i], cacheX, cacheY);
+	for (const auto& net : cachedNets) {
+		totalHPWL += cachedNetHPWL(net, cacheX, cacheY);
 	}
 	return (double)totalHPWL;
 }
@@ -761,18 +931,17 @@ int main(int argc, char* argv[]) {
 		gettimeofday(&start, NULL);
 
 		int numSwaps = 0;
-		double finalHPWL = performSmartPlacement(block, numSwaps);
+		double finalHPWL = performCentroidTensionPlacement(block, numSwaps);
 
 		gettimeofday(&end, NULL);
 		double time_taken = (end.tv_sec - start.tv_sec) * 1e6;
 		time_taken = (time_taken + (end.tv_usec - start.tv_usec)) * 1e-6;
 
 		double hpwlReduction = originalHPWL - finalHPWL;
-		double percentReduction = (hpwlReduction / originalHPWL) * 100.0;
-		double score = (finalHPWL * finalHPWL) * time_taken;
 		int afterExcludedNets = 0;
 		double afterExcludedHPWL = computeAlgoExcludedHPWL(block, afterExcludedNets);
 		double afterConsideredHPWL = finalHPWL - afterExcludedHPWL;
+		double score = (afterConsideredHPWL * afterConsideredHPWL) * time_taken;
 
 		cout << "Problem 2 -- Final HPWL (DBU): " << finalHPWL << endl;
 		cout << "Problem 2 -- Final HPWL (DBU, excluding power nets): " <<  afterConsideredHPWL << endl;

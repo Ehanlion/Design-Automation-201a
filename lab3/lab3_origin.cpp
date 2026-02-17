@@ -142,7 +142,8 @@ static inline oaInt4 cachedNetHPWL(const CachedNet& net,
 // ==========================================================================
 double computeHPWLForNet(oaNet* net, int* endpointCountOut = nullptr) {
 	// Endpoint policy for Part 1:
-	// - Pure center-point approach for all endpoints.
+	// - Top-level terms use center points.
+	// - Instance endpoints use origin points.
 	// - HPWL is the half-perimeter of the bbox over all endpoint points.
 	int endpointCount = countNetEndpoints(net);
 	if (endpointCountOut)
@@ -169,11 +170,9 @@ double computeHPWLForNet(oaNet* net, int* endpointCountOut = nullptr) {
 	oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
 	while (oaInstTerm* instTerm = instTermIterator.getNext()) {
 		oaInst* instance = instTerm->getInst();
-		oaBox ib;
-		instance->getBBox(ib);
-		oaInt4 cx = (ib.lowerLeft().x() + ib.upperRight().x()) / 2;
-		oaInt4 cy = (ib.lowerLeft().y() + ib.upperRight().y()) / 2;
-		includePointInBBox(cx, cy, minX, maxX, minY, maxY, init);
+		oaPoint origin;
+		instance->getOrigin(origin);
+		includePointInBBox(origin.x(), origin.y(), minX, maxX, minY, maxY, init);
 	}
 
 	return (double)hpwlFromBBox(minX, maxX, minY, maxY, init);
@@ -237,17 +236,17 @@ void buildCache(oaBlock* block,
 				vector<vector<int>>* signalInstToNets = nullptr,
 				bool buildAllInstToNets = true) {
 
-	// Pass 1: Index all instances, cache centers, build groups
+	// Pass 1: Index all instances, cache origins, build groups
 	oaIter<oaInst> instIter(block->getInsts());
 	while (oaInst* inst = instIter.getNext()) {
 		int idx = allInsts.size();
 		allInsts.push_back(inst);
 		instIndex[inst] = idx;
 
-		oaBox bbox;
-		inst->getBBox(bbox);
-		cacheX.push_back((bbox.lowerLeft().x() + bbox.upperRight().x()) / 2);
-		cacheY.push_back((bbox.lowerLeft().y() + bbox.upperRight().y()) / 2);
+		oaPoint origin;
+		inst->getOrigin(origin);
+		cacheX.push_back(origin.x());
+		cacheY.push_back(origin.y());
 
 		oaString cellName;
 		inst->getCellName(ns, cellName);
@@ -692,58 +691,52 @@ int main(int argc, char* argv[]) {
 		}
 
 		// ===== EE 201A Lab 3 Problem 1 =====
-		cout << endl
-			 << "----- Ethan Owen: Problem 1 -----" << endl;
+		cout << endl << "----- Ethan Owen: Problem 1 -----" << endl;
 
 		int netsCounted = 0;
 		int skippedNets = 0;
 		double totalHPWL = computeTotalHPWL(block, netsCounted, skippedNets);
 
-		cout << "Problem 1 -- Nets counted in total HPWL: " << netsCounted << " (skipped " << skippedNets << ")" << endl;
-		cout << "Problem 1 -- Total HPWL (DBU): " << fixed << setprecision(0) << totalHPWL << endl;
+		cout << "Problem 1 -- Nets counted in total HPWL: " << netsCounted
+			 << " (skipped " << skippedNets << ")" << endl;
+		cout << "Problem 1 -- Total HPWL (DBU): " << fixed << setprecision(0)
+			 << totalHPWL << endl;
 
 		// ===== EE 201A Lab 3 Problem 2 =====
-		cout << endl
-			 << "----- Ethan Owen: Problem 2 -----" << endl;
+		cout << endl << "----- Ethan Owen: Problem 2 -----" << endl;
 
 		double originalHPWL = totalHPWL;
 		int beforeExcludedNets = 0;
-		double beforeExcludedHPWL = computeAlgoExcludedHPWL(block, beforeExcludedNets);
+		double beforeExcludedHPWL =
+			computeAlgoExcludedHPWL(block, beforeExcludedNets);
 		double beforeConsideredHPWL = originalHPWL - beforeExcludedHPWL;
 
 		cout << "Problem 2 -- Original HPWL (DBU): " << originalHPWL << endl;
 		cout << "Problem 2 -- Original HPWL (DBU, excluding power nets): " << beforeConsideredHPWL << endl;
 
-		// IMPORTANT: DONT MOVE THIS, NEEDED FOR TIMING
 		struct timeval start, end;
 		gettimeofday(&start, NULL);
 
-		// Perform the placement algorithm
 		int numSwaps = 0;
 		double finalHPWL = performSmartPlacement(block, numSwaps);
 
-		// IMPORTANT: DONT MOVE THIS, NEEDED FOR TIMING
 		gettimeofday(&end, NULL);
 		double time_taken = (end.tv_sec - start.tv_sec) * 1e6;
 		time_taken = (time_taken + (end.tv_usec - start.tv_usec)) * 1e-6;
 
-		// Track the reductions we get
 		double hpwlReduction = originalHPWL - finalHPWL;
 		double percentReduction = (hpwlReduction / originalHPWL) * 100.0;
 		double score = (finalHPWL * finalHPWL) * time_taken;
 		int afterExcludedNets = 0;
-
-		// Calculate the HPWL of the design after the placement algorithm
-		// This step exludes the power nets from the calculation for debug purposes
 		double afterExcludedHPWL = computeAlgoExcludedHPWL(block, afterExcludedNets);
 		double afterConsideredHPWL = finalHPWL - afterExcludedHPWL;
 
 		cout << "Problem 2 -- Final HPWL (DBU): " << finalHPWL << endl;
-		cout << "Problem 2 -- Final HPWL (DBU, excluding power nets): " << afterConsideredHPWL << endl;
+		cout << "Problem 2 -- Final HPWL (DBU, excluding power nets): " <<  afterConsideredHPWL << endl;
 		cout << "Problem 2 -- HPWL Reduction (DBU): " << hpwlReduction << endl;
 		cout << "Problem 2 -- Number of swaps: " << numSwaps << endl;
 		cout << "Problem 2 -- Time taken: " << fixed << setprecision(6) << time_taken << " sec" << endl;
-		cout << "Problem 2 -- Score incl. Power Nets (HPWL^2 * Time): " << scientific << setprecision(4) << score << endl;
+		cout << "Problem 2 -- Score (HPWL^2 * Time): " << scientific << setprecision(4) << score << endl;
 
 		// Summary output (required format)
 		cout << endl;

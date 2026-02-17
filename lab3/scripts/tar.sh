@@ -26,6 +26,69 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LAB3_DIR="$(dirname "$SCRIPT_DIR")"  # Lab3 directory (parent of scripts/)
 SUBMISSIONS_DIR="$LAB3_DIR/submission"
 
+# Run Lab 3 flow, parse summary outputs, and update results_submission.txt.
+updateResultsSubmissionFromRun() {
+    local run_script="$SCRIPT_DIR/runLab3.sh"
+    local results_file="$LAB3_DIR/results_submission.txt"
+    local run_log="$SUBMISSIONS_DIR/lab3_run_output.log"
+    local run_output run_status
+    local total_hpwl best_hpwl no_swaps time_sec time_ms
+    local tmp_file
+
+    if [ ! -x "$run_script" ]; then
+        echo "ERROR: $run_script not found or not executable."
+        exit 1
+    fi
+
+    if [ ! -f "$results_file" ]; then
+        echo "ERROR: $results_file not found."
+        exit 1
+    fi
+
+    echo "Running runLab3.sh to refresh results_submission.txt..."
+    run_output="$("$run_script" 2>&1)"
+    run_status=$?
+    printf "%s\n" "$run_output" > "$run_log"
+
+    if [ "$run_status" -ne 0 ]; then
+        echo "ERROR: runLab3.sh failed. See log: $run_log"
+        exit 1
+    fi
+
+    total_hpwl="$(printf "%s\n" "$run_output" | sed -n 's/.*Problem 1 -- Total wirelength of original design:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | tail -n 1)"
+    best_hpwl="$(printf "%s\n" "$run_output" | sed -n 's/.*Problem 2 -- Total wirelength AFTER my incremental placement algorithm:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | tail -n 1)"
+    no_swaps="$(printf "%s\n" "$run_output" | sed -n 's/.*Problem 2 -- Total number of swaps used:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | tail -n 1)"
+    time_sec="$(printf "%s\n" "$run_output" | sed -n 's/.*Problem 2 -- Time taken:[[:space:]]*\([0-9.][0-9.]*\)[[:space:]]*sec.*/\1/p' | tail -n 1)"
+
+    if [ -z "$total_hpwl" ] || [ -z "$best_hpwl" ] || [ -z "$no_swaps" ] || [ -z "$time_sec" ]; then
+        echo "ERROR: Could not parse summary values from run output. See log: $run_log"
+        exit 1
+    fi
+
+    time_ms="$(awk -v sec="$time_sec" 'BEGIN { printf "%.3f", sec * 1000 }')"
+    tmp_file="$(mktemp)"
+
+    awk -v total="$total_hpwl" \
+        -v best="$best_hpwl" \
+        -v swaps="$no_swaps" \
+        -v tms="$time_ms" '
+        /^[[:space:]]*TOTAL_HPWL:/ { $0 = "    TOTAL_HPWL: " total }
+        /^[[:space:]]*BEST_HPWL:/ { $0 = "    BEST_HPWL: " best }
+        /^[[:space:]]*NO_SWAPS:/ { $0 = "    NO_SWAPS: " swaps }
+        /^[[:space:]]*TIME \(ms\):/ { $0 = "    TIME (ms): " tms }
+        { print }
+    ' "$results_file" > "$tmp_file"
+
+    mv "$tmp_file" "$results_file"
+
+    echo "Updated results_submission.txt from run output:"
+    echo "  TOTAL_HPWL: $total_hpwl"
+    echo "  BEST_HPWL: $best_hpwl"
+    echo "  NO_SWAPS: $no_swaps"
+    echo "  TIME (ms): $time_ms"
+    echo "Run output log: $run_log"
+}
+
 # Create submissions directory if it doesn't exist
 if [ ! -d "$SUBMISSIONS_DIR" ]; then
     echo "Creating submissions directory: $SUBMISSIONS_DIR/"
@@ -44,6 +107,9 @@ fi
 # Create the submission directory
 echo "Creating directory: $DIR_NAME/"
 mkdir -p "$DIR_NAME"
+
+# Auto-refresh results before packaging.
+updateResultsSubmissionFromRun
 
 # ---- 1. Copy lab3.cpp -> Owen-Ethan_905452983_palatics_Lab3.cpp ----
 if [ -f "$LAB3_DIR/lab3.cpp" ]; then

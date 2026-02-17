@@ -5,9 +5,9 @@ REPLACE ??? WITH YOUR RESULTS.
 ###########
 LAB3
 PROBLEM1:
-    TOTAL_HPWL: ???
+    TOTAL_HPWL: 5599970
 PROBLEM2:
-    BEST_HPWL: ???
-    NO_SWAPS: ???
-    TIME (ms): ???
+    BEST_HPWL: 5599210
+    NO_SWAPS: 2
+    TIME (ms): 0.968
 ###########

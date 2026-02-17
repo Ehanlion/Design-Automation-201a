@@ -26,7 +26,7 @@ static oaNativeNS ns;
 // Cached net representation for fast swap evaluation (no OA API calls)
 // ==========================================================================
 struct CachedNet {
-	vector<int> instIndices;						   // indices into cacheX/cacheY
+	vector<int> instIndices;						   // indices into center/origin caches
 	bool hasFixedPins;								   // true if net has primary I/O pin coords
 	oaInt4 fixedMinX, fixedMaxX, fixedMinY, fixedMaxY; // bounding box of fixed pins
 };
@@ -88,6 +88,34 @@ static inline bool isExcludedNetForProblem2(const char* name) {
 // ==========================================================================
 // Compute HPWL for a single net from cached coordinates (pure arithmetic)
 // ==========================================================================
+static inline void includePointInBBox(oaInt4 x, oaInt4 y,
+									  oaInt4& minX, oaInt4& maxX,
+									  oaInt4& minY, oaInt4& maxY,
+									  bool& init) {
+	if (!init) {
+		minX = maxX = x;
+		minY = maxY = y;
+		init = true;
+		return;
+	}
+	if (x < minX)
+		minX = x;
+	if (x > maxX)
+		maxX = x;
+	if (y < minY)
+		minY = y;
+	if (y > maxY)
+		maxY = y;
+}
+
+static inline oaInt4 hpwlFromBBox(oaInt4 minX, oaInt4 maxX,
+								  oaInt4 minY, oaInt4 maxY,
+								  bool init) {
+	if (!init)
+		return 0;
+	return (maxX - minX) + (maxY - minY);
+}
+
 static inline oaInt4 cachedNetHPWL(const CachedNet& net,
 								   const vector<oaInt4>& cx,
 								   const vector<oaInt4>& cy) {
@@ -103,26 +131,10 @@ static inline oaInt4 cachedNetHPWL(const CachedNet& net,
 	}
 
 	for (int idx : net.instIndices) {
-		oaInt4 x = cx[idx], y = cy[idx];
-		if (!init) {
-			minX = maxX = x;
-			minY = maxY = y;
-			init = true;
-		} else {
-			if (x < minX)
-				minX = x;
-			if (x > maxX)
-				maxX = x;
-			if (y < minY)
-				minY = y;
-			if (y > maxY)
-				maxY = y;
-		}
+		includePointInBBox(cx[idx], cy[idx], minX, maxX, minY, maxY, init);
 	}
 
-	if (!init)
-		return 0;
-	return (maxX - minX) + (maxY - minY);
+	return hpwlFromBBox(minX, maxX, minY, maxY, init);
 }
 
 // ==========================================================================
@@ -130,16 +142,14 @@ static inline oaInt4 cachedNetHPWL(const CachedNet& net,
 // ==========================================================================
 double computeHPWLForNet(oaNet* net, int* endpointCountOut = nullptr) {
 	// Endpoint policy for Part 1:
-	// - >2 endpoints: HPWL of the smallest bbox including all endpoints.
-	// - <=2 endpoints: center-point approach.
+	// - Pure center-point approach for all endpoints.
+	// - HPWL is the half-perimeter of the bbox over all endpoint points.
 	int endpointCount = countNetEndpoints(net);
 	if (endpointCountOut)
 		*endpointCountOut = endpointCount;
 
-	bool useFullBBox = (endpointCount > 2);
-
-	oaBox bbox;
-	bool bboxInitialized = false;
+	oaInt4 minX = 0, maxX = 0, minY = 0, maxY = 0;
+	bool init = false;
 
 	oaIter<oaTerm> termIterator(net->getTerms());
 	while (oaTerm* term = termIterator.getNext()) {
@@ -148,35 +158,12 @@ double computeHPWLForNet(oaNet* net, int* endpointCountOut = nullptr) {
 			continue;
 		}
 
-		if (useFullBBox) {
-			// For nets with >2 endpoints: use full endpoint bbox coverage.
-			if (!bboxInitialized) {
-				bbox = termBox;
-				bboxInitialized = true;
-			} else {
-				oaPoint ll = bbox.lowerLeft();
-				oaPoint ur = bbox.upperRight();
-				oaPoint tll = termBox.lowerLeft();
-				oaPoint tur = termBox.upperRight();
-				bbox.set(min(ll.x(), tll.x()), min(ll.y(), tll.y()),
-						 max(ur.x(), tur.x()), max(ur.y(), tur.y()));
-			}
-		} else {
-			// For nets with <=2 endpoints: use center point.
-			oaPoint tll = termBox.lowerLeft();
-			oaPoint tur = termBox.upperRight();
-			oaInt4 cx = (tll.x() + tur.x()) / 2;
-			oaInt4 cy = (tll.y() + tur.y()) / 2;
-			if (!bboxInitialized) {
-				bbox.set(cx, cy, cx, cy);
-				bboxInitialized = true;
-			} else {
-				oaPoint ll = bbox.lowerLeft();
-				oaPoint ur = bbox.upperRight();
-				bbox.set(min(ll.x(), cx), min(ll.y(), cy),
-						 max(ur.x(), cx), max(ur.y(), cy));
-			}
-		}
+		// Use center point for each top-level term endpoint.
+		oaPoint tll = termBox.lowerLeft();
+		oaPoint tur = termBox.upperRight();
+		oaInt4 cx = (tll.x() + tur.x()) / 2;
+		oaInt4 cy = (tll.y() + tur.y()) / 2;
+		includePointInBBox(cx, cy, minX, maxX, minY, maxY, init);
 	}
 
 	oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
@@ -186,22 +173,10 @@ double computeHPWLForNet(oaNet* net, int* endpointCountOut = nullptr) {
 		instance->getBBox(ib);
 		oaInt4 cx = (ib.lowerLeft().x() + ib.upperRight().x()) / 2;
 		oaInt4 cy = (ib.lowerLeft().y() + ib.upperRight().y()) / 2;
-		if (!bboxInitialized) {
-			bbox.set(cx, cy, cx, cy);
-			bboxInitialized = true;
-		} else {
-			oaPoint ll = bbox.lowerLeft();
-			oaPoint ur = bbox.upperRight();
-			bbox.set(min(ll.x(), cx), min(ll.y(), cy),
-					 max(ur.x(), cx), max(ur.y(), cy));
-		}
+		includePointInBBox(cx, cy, minX, maxX, minY, maxY, init);
 	}
 
-	if (!bboxInitialized)
-		return 0.0;
-	oaPoint ll = bbox.lowerLeft();
-	oaPoint ur = bbox.upperRight();
-	return (double)((ur.x() - ll.x()) + (ur.y() - ll.y()));
+	return (double)hpwlFromBBox(minX, maxX, minY, maxY, init);
 }
 
 // ==========================================================================
@@ -310,13 +285,11 @@ void buildCache(oaBlock* block,
 		cn.fixedMinY = INT_MAX;
 		cn.fixedMaxY = INT_MIN;
 
-		// Collect terminal geometry and endpoint count in one pass.
-		int termCount = 0;
+		// Collect terminal geometry in one pass.
 		vector<oaBox> termBoxes;
 		termBoxes.reserve(4);
 		oaIter<oaTerm> termIter(net->getTerms());
 		while (oaTerm* term = termIter.getNext()) {
-			termCount++;
 			oaBox termBox;
 			if (!getTermEndpointBox(term, termBox)) {
 				continue;
@@ -325,10 +298,8 @@ void buildCache(oaBlock* block,
 		}
 
 		// Collect instance endpoints in one pass.
-		int instTermCount = 0;
 		oaIter<oaInstTerm> itIter(net->getInstTerms());
 		while (oaInstTerm* it = itIter.getNext()) {
-			instTermCount++;
 			oaInst* inst = it->getInst();
 			auto found = instIndex.find(inst);
 			if (found != instIndex.end()) {
@@ -336,37 +307,22 @@ void buildCache(oaBlock* block,
 			}
 		}
 
-		bool useFullBBox = ((termCount + instTermCount) > 2);
+		// Pure center-point policy for top-level term endpoints.
 		for (const oaBox& termBox : termBoxes) {
 			cn.hasFixedPins = true;
-			if (useFullBBox) {
-				// For nets with >2 endpoints: use full bounding box.
-				if (cn.fixedMinX == INT_MAX) {
-					cn.fixedMinX = termBox.lowerLeft().x();
-					cn.fixedMaxX = termBox.upperRight().x();
-					cn.fixedMinY = termBox.lowerLeft().y();
-					cn.fixedMaxY = termBox.upperRight().y();
-				} else {
-					cn.fixedMinX = min(cn.fixedMinX, termBox.lowerLeft().x());
-					cn.fixedMinY = min(cn.fixedMinY, termBox.lowerLeft().y());
-					cn.fixedMaxX = max(cn.fixedMaxX, termBox.upperRight().x());
-					cn.fixedMaxY = max(cn.fixedMaxY, termBox.upperRight().y());
-				}
+
+			oaPoint tll = termBox.lowerLeft();
+			oaPoint tur = termBox.upperRight();
+			oaInt4 cx = (tll.x() + tur.x()) / 2;
+			oaInt4 cy = (tll.y() + tur.y()) / 2;
+			if (cn.fixedMinX == INT_MAX) {
+				cn.fixedMinX = cn.fixedMaxX = cx;
+				cn.fixedMinY = cn.fixedMaxY = cy;
 			} else {
-				// For nets with <=2 endpoints: use center point.
-				oaPoint tll = termBox.lowerLeft();
-				oaPoint tur = termBox.upperRight();
-				oaInt4 cx = (tll.x() + tur.x()) / 2;
-				oaInt4 cy = (tll.y() + tur.y()) / 2;
-				if (cn.fixedMinX == INT_MAX) {
-					cn.fixedMinX = cn.fixedMaxX = cx;
-					cn.fixedMinY = cn.fixedMaxY = cy;
-				} else {
-					cn.fixedMinX = min(cn.fixedMinX, cx);
-					cn.fixedMinY = min(cn.fixedMinY, cy);
-					cn.fixedMaxX = max(cn.fixedMaxX, cx);
-					cn.fixedMaxY = max(cn.fixedMaxY, cy);
-				}
+				cn.fixedMinX = min(cn.fixedMinX, cx);
+				cn.fixedMinY = min(cn.fixedMinY, cy);
+				cn.fixedMaxX = max(cn.fixedMaxX, cx);
+				cn.fixedMaxY = max(cn.fixedMaxY, cy);
 			}
 		}
 
@@ -457,7 +413,8 @@ double performGreedyPlacement(oaBlock* block, int& numSwaps) {
 	vector<vector<int>> instToNets;
 	unordered_map<string, vector<int>> instGroups;
 
-	buildCache(block, allInsts, instIndex, cacheX, cacheY,
+	buildCache(block, allInsts, instIndex,
+			   cacheX, cacheY,
 			   cachedNets, instToNets, instGroups);
 
 	int numInsts = allInsts.size();
@@ -548,7 +505,8 @@ double performSmartPlacement(oaBlock* block, int& numSwaps) {
 	unordered_map<string, vector<int>> instGroups;
 	vector<vector<int>> signalInstToNets;
 
-	buildCache(block, allInsts, instIndex, cacheX, cacheY,
+	buildCache(block, allInsts, instIndex,
+			   cacheX, cacheY,
 			   cachedNets, instToNets, instGroups,
 			   nullptr, &signalInstToNets, false);
 
@@ -734,52 +692,58 @@ int main(int argc, char* argv[]) {
 		}
 
 		// ===== EE 201A Lab 3 Problem 1 =====
-		cout << endl << "----- Ethan Owen: Problem 1 -----" << endl;
+		cout << endl
+			 << "----- Ethan Owen: Problem 1 -----" << endl;
 
 		int netsCounted = 0;
 		int skippedNets = 0;
 		double totalHPWL = computeTotalHPWL(block, netsCounted, skippedNets);
 
-		cout << "Problem 1 -- Nets counted in total HPWL: " << netsCounted
-			 << " (skipped " << skippedNets << ")" << endl;
-		cout << "Problem 1 -- Total HPWL (DBU): " << fixed << setprecision(0)
-			 << totalHPWL << endl;
+		cout << "Problem 1 -- Nets counted in total HPWL: " << netsCounted << " (skipped " << skippedNets << ")" << endl;
+		cout << "Problem 1 -- Total HPWL (DBU): " << fixed << setprecision(0) << totalHPWL << endl;
 
 		// ===== EE 201A Lab 3 Problem 2 =====
-		cout << endl << "----- Ethan Owen: Problem 2 -----" << endl;
+		cout << endl
+			 << "----- Ethan Owen: Problem 2 -----" << endl;
 
 		double originalHPWL = totalHPWL;
 		int beforeExcludedNets = 0;
-		double beforeExcludedHPWL =
-			computeAlgoExcludedHPWL(block, beforeExcludedNets);
+		double beforeExcludedHPWL = computeAlgoExcludedHPWL(block, beforeExcludedNets);
 		double beforeConsideredHPWL = originalHPWL - beforeExcludedHPWL;
 
 		cout << "Problem 2 -- Original HPWL (DBU): " << originalHPWL << endl;
 		cout << "Problem 2 -- Original HPWL (DBU, excluding power nets): " << beforeConsideredHPWL << endl;
 
+		// IMPORTANT: DONT MOVE THIS, NEEDED FOR TIMING
 		struct timeval start, end;
 		gettimeofday(&start, NULL);
 
+		// Perform the placement algorithm
 		int numSwaps = 0;
 		double finalHPWL = performSmartPlacement(block, numSwaps);
 
+		// IMPORTANT: DONT MOVE THIS, NEEDED FOR TIMING
 		gettimeofday(&end, NULL);
 		double time_taken = (end.tv_sec - start.tv_sec) * 1e6;
 		time_taken = (time_taken + (end.tv_usec - start.tv_usec)) * 1e-6;
 
+		// Track the reductions we get
 		double hpwlReduction = originalHPWL - finalHPWL;
 		double percentReduction = (hpwlReduction / originalHPWL) * 100.0;
 		double score = (finalHPWL * finalHPWL) * time_taken;
 		int afterExcludedNets = 0;
+
+		// Calculate the HPWL of the design after the placement algorithm
+		// This step exludes the power nets from the calculation for debug purposes
 		double afterExcludedHPWL = computeAlgoExcludedHPWL(block, afterExcludedNets);
 		double afterConsideredHPWL = finalHPWL - afterExcludedHPWL;
 
 		cout << "Problem 2 -- Final HPWL (DBU): " << finalHPWL << endl;
-		cout << "Problem 2 -- Final HPWL (DBU, excluding power nets): " <<  afterConsideredHPWL << endl;
+		cout << "Problem 2 -- Final HPWL (DBU, excluding power nets): " << afterConsideredHPWL << endl;
 		cout << "Problem 2 -- HPWL Reduction (DBU): " << hpwlReduction << endl;
 		cout << "Problem 2 -- Number of swaps: " << numSwaps << endl;
 		cout << "Problem 2 -- Time taken: " << fixed << setprecision(6) << time_taken << " sec" << endl;
-		cout << "Problem 2 -- Score (HPWL^2 * Time): " << scientific << setprecision(4) << score << endl;
+		cout << "Problem 2 -- Score incl. Power Nets (HPWL^2 * Time): " << scientific << setprecision(4) << score << endl;
 
 		// Summary output (required format)
 		cout << endl;

@@ -13,7 +13,7 @@ The algorithm computes the total Half-Perimeter Wirelength (HPWL) for **all 324 
 
 For each net:
 
-1. **Primary I/O Terminals (oaTerm)**: Iterates through all pin figures for each terminal pin. For nets with >2 endpoints, the full bounding box of each pin figure is used. For nets with <=2 endpoints, the center point of the pin figure bounding box is used.
+1. **Primary I/O Terminals (oaTerm)**: Iterates through all pin figures for each terminal pin, merges each terminal's pin geometry, and uses the **terminal center point** as the endpoint location.
 
 2. **Instance Terminals (oaInstTerm)**: Uses the center point of each instance's bounding box as the connection point.
 
@@ -22,13 +22,15 @@ For each net:
 ### Assumptions
 
 1. All nets are included (power, ground, clock, signal, unconnected).
-2. Center-point approximation is used for instance terminals and for primary I/O terminals on nets with <=2 endpoints.
+2. Center-point approximation is used for **all** endpoints:
+   - Primary I/O terminals use center of merged terminal pin geometry.
+   - Instance terminals use center of instance bounding box.
 3. Nets with fewer than 2 distinct endpoints contribute 0 HPWL.
 
 ### Results
 
 - **Total nets processed**: 324
-- **Total HPWL**: 5,601,160 DBU
+- **Total HPWL**: 5,599,970 DBU
 
 ---
 
@@ -94,26 +96,28 @@ The design goal is to keep HPWL improvement while reducing runtime as much as po
    - Endpoint counting and geometry extraction are done in one combined traversal.
    - Avoids duplicate per-net term/instTerm scans.
 
-4. **Smart-path selective cache construction**:
+4. **Consistent endpoint model across Problem 1 and Problem 2 cache math**:
+   - Pure center-point endpoint policy is used for both OA-based HPWL and cached HPWL evaluation.
+
+5. **Smart-path selective cache construction**:
    - Smart placement now skips building full `instToNets` when unused.
    - Builds only signal adjacency required by smart swap evaluation.
 
-5. **Faster excluded-net checks**:
+6. **Faster excluded-net checks**:
    - Replaced `std::string` construction with direct C-string checks (`strcmp/strncmp`).
 
-6. **Lower-overhead OA swap update**:
+7. **Lower-overhead OA swap update**:
    - Swaps use `getOrigin/setOrigin` instead of transform reconstruction.
 
 ### Results
 
-- **Original HPWL**: 5,601,160 DBU
-- **Final HPWL**: 5,600,400 DBU
+- **Original HPWL**: 5,599,970 DBU
+- **Final HPWL**: 5,599,210 DBU
 - **HPWL Reduction**: 760 DBU (0.01%)
 - **Number of swaps**: 2
-- **Execution time (single runs)**: typically ~0.0010 to 0.0011 sec
-- **Execution time (5-run median)**: ~0.001035 sec
-- **Score (5-run median)**: ~3.2462e+10
+- **Execution time (single run shown)**: 0.001092 sec
+- **Score (single run shown)**: 3.4235e+10
 
 ### Runtime Note
 
-Server and load conditions cause run-to-run variation. Reported timing and score are based on repeated runs and median values for stability.
+Server and load conditions cause run-to-run variation. Values above are from one representative run; repeated runs are recommended for stable score reporting.

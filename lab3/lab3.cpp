@@ -130,13 +130,11 @@ static inline oaInt4 cachedNetHPWL(const CachedNet& net,
 // ==========================================================================
 double computeHPWLForNet(oaNet* net, int* endpointCountOut = nullptr) {
 	// Endpoint policy for Part 1:
-	// - >2 endpoints: HPWL of the smallest bbox including all endpoints.
-	// - <=2 endpoints: center-point approach.
+	// - Pure center-point approach for all endpoints.
+	// - HPWL is the half-perimeter of the bbox over all endpoint points.
 	int endpointCount = countNetEndpoints(net);
 	if (endpointCountOut)
 		*endpointCountOut = endpointCount;
-
-	bool useFullBBox = (endpointCount > 2);
 
 	oaBox bbox;
 	bool bboxInitialized = false;
@@ -148,34 +146,19 @@ double computeHPWLForNet(oaNet* net, int* endpointCountOut = nullptr) {
 			continue;
 		}
 
-		if (useFullBBox) {
-			// For nets with >2 endpoints: use full endpoint bbox coverage.
-			if (!bboxInitialized) {
-				bbox = termBox;
-				bboxInitialized = true;
-			} else {
-				oaPoint ll = bbox.lowerLeft();
-				oaPoint ur = bbox.upperRight();
-				oaPoint tll = termBox.lowerLeft();
-				oaPoint tur = termBox.upperRight();
-				bbox.set(min(ll.x(), tll.x()), min(ll.y(), tll.y()),
-						 max(ur.x(), tur.x()), max(ur.y(), tur.y()));
-			}
+		// Use center point for each top-level term endpoint.
+		oaPoint tll = termBox.lowerLeft();
+		oaPoint tur = termBox.upperRight();
+		oaInt4 cx = (tll.x() + tur.x()) / 2;
+		oaInt4 cy = (tll.y() + tur.y()) / 2;
+		if (!bboxInitialized) {
+			bbox.set(cx, cy, cx, cy);
+			bboxInitialized = true;
 		} else {
-			// For nets with <=2 endpoints: use center point.
-			oaPoint tll = termBox.lowerLeft();
-			oaPoint tur = termBox.upperRight();
-			oaInt4 cx = (tll.x() + tur.x()) / 2;
-			oaInt4 cy = (tll.y() + tur.y()) / 2;
-			if (!bboxInitialized) {
-				bbox.set(cx, cy, cx, cy);
-				bboxInitialized = true;
-			} else {
-				oaPoint ll = bbox.lowerLeft();
-				oaPoint ur = bbox.upperRight();
-				bbox.set(min(ll.x(), cx), min(ll.y(), cy),
-						 max(ur.x(), cx), max(ur.y(), cy));
-			}
+			oaPoint ll = bbox.lowerLeft();
+			oaPoint ur = bbox.upperRight();
+			bbox.set(min(ll.x(), cx), min(ll.y(), cy),
+					 max(ur.x(), cx), max(ur.y(), cy));
 		}
 	}
 
@@ -310,13 +293,11 @@ void buildCache(oaBlock* block,
 		cn.fixedMinY = INT_MAX;
 		cn.fixedMaxY = INT_MIN;
 
-		// Collect terminal geometry and endpoint count in one pass.
-		int termCount = 0;
+		// Collect terminal geometry in one pass.
 		vector<oaBox> termBoxes;
 		termBoxes.reserve(4);
 		oaIter<oaTerm> termIter(net->getTerms());
 		while (oaTerm* term = termIter.getNext()) {
-			termCount++;
 			oaBox termBox;
 			if (!getTermEndpointBox(term, termBox)) {
 				continue;
@@ -325,10 +306,8 @@ void buildCache(oaBlock* block,
 		}
 
 		// Collect instance endpoints in one pass.
-		int instTermCount = 0;
 		oaIter<oaInstTerm> itIter(net->getInstTerms());
 		while (oaInstTerm* it = itIter.getNext()) {
-			instTermCount++;
 			oaInst* inst = it->getInst();
 			auto found = instIndex.find(inst);
 			if (found != instIndex.end()) {
@@ -336,37 +315,22 @@ void buildCache(oaBlock* block,
 			}
 		}
 
-		bool useFullBBox = ((termCount + instTermCount) > 2);
+		// Pure center-point policy for top-level term endpoints.
 		for (const oaBox& termBox : termBoxes) {
 			cn.hasFixedPins = true;
-			if (useFullBBox) {
-				// For nets with >2 endpoints: use full bounding box.
-				if (cn.fixedMinX == INT_MAX) {
-					cn.fixedMinX = termBox.lowerLeft().x();
-					cn.fixedMaxX = termBox.upperRight().x();
-					cn.fixedMinY = termBox.lowerLeft().y();
-					cn.fixedMaxY = termBox.upperRight().y();
-				} else {
-					cn.fixedMinX = min(cn.fixedMinX, termBox.lowerLeft().x());
-					cn.fixedMinY = min(cn.fixedMinY, termBox.lowerLeft().y());
-					cn.fixedMaxX = max(cn.fixedMaxX, termBox.upperRight().x());
-					cn.fixedMaxY = max(cn.fixedMaxY, termBox.upperRight().y());
-				}
+
+			oaPoint tll = termBox.lowerLeft();
+			oaPoint tur = termBox.upperRight();
+			oaInt4 cx = (tll.x() + tur.x()) / 2;
+			oaInt4 cy = (tll.y() + tur.y()) / 2;
+			if (cn.fixedMinX == INT_MAX) {
+				cn.fixedMinX = cn.fixedMaxX = cx;
+				cn.fixedMinY = cn.fixedMaxY = cy;
 			} else {
-				// For nets with <=2 endpoints: use center point.
-				oaPoint tll = termBox.lowerLeft();
-				oaPoint tur = termBox.upperRight();
-				oaInt4 cx = (tll.x() + tur.x()) / 2;
-				oaInt4 cy = (tll.y() + tur.y()) / 2;
-				if (cn.fixedMinX == INT_MAX) {
-					cn.fixedMinX = cn.fixedMaxX = cx;
-					cn.fixedMinY = cn.fixedMaxY = cy;
-				} else {
-					cn.fixedMinX = min(cn.fixedMinX, cx);
-					cn.fixedMinY = min(cn.fixedMinY, cy);
-					cn.fixedMaxX = max(cn.fixedMaxX, cx);
-					cn.fixedMaxY = max(cn.fixedMaxY, cy);
-				}
+				cn.fixedMinX = min(cn.fixedMinX, cx);
+				cn.fixedMinY = min(cn.fixedMinY, cy);
+				cn.fixedMaxX = max(cn.fixedMaxX, cx);
+				cn.fixedMaxY = max(cn.fixedMaxY, cy);
 			}
 		}
 

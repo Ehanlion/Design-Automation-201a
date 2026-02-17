@@ -1,6 +1,8 @@
 # EE 201A Lab 3 Report
 **Ethan Owen (UID: 905452983)**
 
+Additional tuning and variant documentation: `lab3/documentation/LAB3_COMPLEX_OFFSKEW_TUNING.md`
+
 ---
 
 ## Problem 1: Total HPWL Calculation

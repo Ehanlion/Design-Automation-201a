@@ -26,7 +26,7 @@ static oaNativeNS ns;
 // Cached net representation for fast swap evaluation (no OA API calls)
 // ==========================================================================
 struct CachedNet {
-	vector<int> instIndices;						   // indices into cacheX/cacheY
+	vector<int> instIndices;						   // indices into center/origin caches
 	bool hasFixedPins;								   // true if net has primary I/O pin coords
 	oaInt4 fixedMinX, fixedMaxX, fixedMinY, fixedMaxY; // bounding box of fixed pins
 };
@@ -86,43 +86,71 @@ static inline bool isExcludedNetForProblem2(const char* name) {
 }
 
 // ==========================================================================
-// Compute HPWL for a single net from cached coordinates (pure arithmetic)
+// Compute HPWL for a single net from cached coordinates (pure arithmetic).
+// For each net, evaluate instance-center and instance-origin models, then take
+// the lower HPWL.
 // ==========================================================================
-static inline oaInt4 cachedNetHPWL(const CachedNet& net,
-								   const vector<oaInt4>& cx,
-								   const vector<oaInt4>& cy) {
-	oaInt4 minX, maxX, minY, maxY;
-	bool init = false;
-
-	if (net.hasFixedPins) {
-		minX = net.fixedMinX;
-		maxX = net.fixedMaxX;
-		minY = net.fixedMinY;
-		maxY = net.fixedMaxY;
+static inline void includePointInBBox(oaInt4 x, oaInt4 y,
+									  oaInt4& minX, oaInt4& maxX,
+									  oaInt4& minY, oaInt4& maxY,
+									  bool& init) {
+	if (!init) {
+		minX = maxX = x;
+		minY = maxY = y;
 		init = true;
+		return;
 	}
+	if (x < minX)
+		minX = x;
+	if (x > maxX)
+		maxX = x;
+	if (y < minY)
+		minY = y;
+	if (y > maxY)
+		maxY = y;
+}
 
-	for (int idx : net.instIndices) {
-		oaInt4 x = cx[idx], y = cy[idx];
-		if (!init) {
-			minX = maxX = x;
-			minY = maxY = y;
-			init = true;
-		} else {
-			if (x < minX)
-				minX = x;
-			if (x > maxX)
-				maxX = x;
-			if (y < minY)
-				minY = y;
-			if (y > maxY)
-				maxY = y;
-		}
-	}
-
+static inline oaInt4 hpwlFromBBox(oaInt4 minX, oaInt4 maxX,
+								  oaInt4 minY, oaInt4 maxY,
+								  bool init) {
 	if (!init)
 		return 0;
 	return (maxX - minX) + (maxY - minY);
+}
+
+static inline oaInt4 cachedNetHPWLHybrid(const CachedNet& net,
+										 const vector<oaInt4>& centerX,
+										 const vector<oaInt4>& centerY,
+										 const vector<oaInt4>& originX,
+										 const vector<oaInt4>& originY) {
+	oaInt4 cMinX, cMaxX, cMinY, cMaxY;
+	oaInt4 oMinX, oMaxX, oMinY, oMaxY;
+	bool cInit = false;
+	bool oInit = false;
+
+	if (net.hasFixedPins) {
+		cMinX = net.fixedMinX;
+		cMaxX = net.fixedMaxX;
+		cMinY = net.fixedMinY;
+		cMaxY = net.fixedMaxY;
+		oMinX = net.fixedMinX;
+		oMaxX = net.fixedMaxX;
+		oMinY = net.fixedMinY;
+		oMaxY = net.fixedMaxY;
+		cInit = true;
+		oInit = true;
+	}
+
+	for (int idx : net.instIndices) {
+		includePointInBBox(centerX[idx], centerY[idx],
+						   cMinX, cMaxX, cMinY, cMaxY, cInit);
+		includePointInBBox(originX[idx], originY[idx],
+						   oMinX, oMaxX, oMinY, oMaxY, oInit);
+	}
+
+	oaInt4 centerHPWL = hpwlFromBBox(cMinX, cMaxX, cMinY, cMaxY, cInit);
+	oaInt4 originHPWL = hpwlFromBBox(oMinX, oMaxX, oMinY, oMaxY, oInit);
+	return min(centerHPWL, originHPWL);
 }
 
 // ==========================================================================
@@ -130,14 +158,17 @@ static inline oaInt4 cachedNetHPWL(const CachedNet& net,
 // ==========================================================================
 double computeHPWLForNet(oaNet* net, int* endpointCountOut = nullptr) {
 	// Endpoint policy for Part 1:
-	// - Pure center-point approach for all endpoints.
-	// - HPWL is the half-perimeter of the bbox over all endpoint points.
+	// - Top-level terms always use term-center points.
+	// - Instance endpoints are evaluated with both center and origin points.
+	// - Use the lower HPWL of the two models for this net.
 	int endpointCount = countNetEndpoints(net);
 	if (endpointCountOut)
 		*endpointCountOut = endpointCount;
 
-	oaBox bbox;
-	bool bboxInitialized = false;
+	oaInt4 cMinX = 0, cMaxX = 0, cMinY = 0, cMaxY = 0;
+	oaInt4 oMinX = 0, oMaxX = 0, oMinY = 0, oMaxY = 0;
+	bool cInit = false;
+	bool oInit = false;
 
 	oaIter<oaTerm> termIterator(net->getTerms());
 	while (oaTerm* term = termIterator.getNext()) {
@@ -151,15 +182,8 @@ double computeHPWLForNet(oaNet* net, int* endpointCountOut = nullptr) {
 		oaPoint tur = termBox.upperRight();
 		oaInt4 cx = (tll.x() + tur.x()) / 2;
 		oaInt4 cy = (tll.y() + tur.y()) / 2;
-		if (!bboxInitialized) {
-			bbox.set(cx, cy, cx, cy);
-			bboxInitialized = true;
-		} else {
-			oaPoint ll = bbox.lowerLeft();
-			oaPoint ur = bbox.upperRight();
-			bbox.set(min(ll.x(), cx), min(ll.y(), cy),
-					 max(ur.x(), cx), max(ur.y(), cy));
-		}
+		includePointInBBox(cx, cy, cMinX, cMaxX, cMinY, cMaxY, cInit);
+		includePointInBBox(cx, cy, oMinX, oMaxX, oMinY, oMaxY, oInit);
 	}
 
 	oaIter<oaInstTerm> instTermIterator(net->getInstTerms());
@@ -169,22 +193,17 @@ double computeHPWLForNet(oaNet* net, int* endpointCountOut = nullptr) {
 		instance->getBBox(ib);
 		oaInt4 cx = (ib.lowerLeft().x() + ib.upperRight().x()) / 2;
 		oaInt4 cy = (ib.lowerLeft().y() + ib.upperRight().y()) / 2;
-		if (!bboxInitialized) {
-			bbox.set(cx, cy, cx, cy);
-			bboxInitialized = true;
-		} else {
-			oaPoint ll = bbox.lowerLeft();
-			oaPoint ur = bbox.upperRight();
-			bbox.set(min(ll.x(), cx), min(ll.y(), cy),
-					 max(ur.x(), cx), max(ur.y(), cy));
-		}
+		oaPoint origin;
+		instance->getOrigin(origin);
+
+		includePointInBBox(cx, cy, cMinX, cMaxX, cMinY, cMaxY, cInit);
+		includePointInBBox(origin.x(), origin.y(),
+						   oMinX, oMaxX, oMinY, oMaxY, oInit);
 	}
 
-	if (!bboxInitialized)
-		return 0.0;
-	oaPoint ll = bbox.lowerLeft();
-	oaPoint ur = bbox.upperRight();
-	return (double)((ur.x() - ll.x()) + (ur.y() - ll.y()));
+	oaInt4 centerHPWL = hpwlFromBBox(cMinX, cMaxX, cMinY, cMaxY, cInit);
+	oaInt4 originHPWL = hpwlFromBBox(oMinX, oMaxX, oMinY, oMaxY, oInit);
+	return (double)min(centerHPWL, originHPWL);
 }
 
 // ==========================================================================
@@ -236,8 +255,10 @@ double computeAlgoExcludedHPWL(oaBlock* block, int& excludedNetsCount) {
 void buildCache(oaBlock* block,
 				vector<oaInst*>& allInsts,
 				unordered_map<oaInst*, int>& instIndex,
-				vector<oaInt4>& cacheX,
-				vector<oaInt4>& cacheY,
+				vector<oaInt4>& cacheCenterX,
+				vector<oaInt4>& cacheCenterY,
+				vector<oaInt4>& cacheOriginX,
+				vector<oaInt4>& cacheOriginY,
 				vector<CachedNet>& cachedNets,
 				vector<vector<int>>& instToNets,
 				unordered_map<string, vector<int>>& instGroups,
@@ -245,7 +266,7 @@ void buildCache(oaBlock* block,
 				vector<vector<int>>* signalInstToNets = nullptr,
 				bool buildAllInstToNets = true) {
 
-	// Pass 1: Index all instances, cache centers, build groups
+	// Pass 1: Index all instances, cache centers/origins, build groups
 	oaIter<oaInst> instIter(block->getInsts());
 	while (oaInst* inst = instIter.getNext()) {
 		int idx = allInsts.size();
@@ -254,8 +275,13 @@ void buildCache(oaBlock* block,
 
 		oaBox bbox;
 		inst->getBBox(bbox);
-		cacheX.push_back((bbox.lowerLeft().x() + bbox.upperRight().x()) / 2);
-		cacheY.push_back((bbox.lowerLeft().y() + bbox.upperRight().y()) / 2);
+		cacheCenterX.push_back((bbox.lowerLeft().x() + bbox.upperRight().x()) / 2);
+		cacheCenterY.push_back((bbox.lowerLeft().y() + bbox.upperRight().y()) / 2);
+
+		oaPoint origin;
+		inst->getOrigin(origin);
+		cacheOriginX.push_back(origin.x());
+		cacheOriginY.push_back(origin.y());
 
 		oaString cellName;
 		inst->getCellName(ns, cellName);
@@ -357,7 +383,8 @@ void buildCache(oaBlock* block,
 static inline long long computeSwapDelta(
 	int a, int b,
 	const vector<CachedNet>& nets,
-	vector<oaInt4>& cx, vector<oaInt4>& cy,
+	vector<oaInt4>& centerX, vector<oaInt4>& centerY,
+	vector<oaInt4>& originX, vector<oaInt4>& originY,
 	const vector<vector<int>>& instToNets,
 	vector<bool>& visited) {
 
@@ -382,22 +409,28 @@ static inline long long computeSwapDelta(
 	// Compute current HPWL for affected nets
 	long long currentHPWL = 0;
 	for (int k = 0; k < affCount; k++) {
-		currentHPWL += cachedNetHPWL(nets[affBuf[k]], cx, cy);
+		currentHPWL += cachedNetHPWLHybrid(
+			nets[affBuf[k]], centerX, centerY, originX, originY);
 	}
 
 	// Swap cached coordinates
-	swap(cx[a], cx[b]);
-	swap(cy[a], cy[b]);
+	swap(centerX[a], centerX[b]);
+	swap(centerY[a], centerY[b]);
+	swap(originX[a], originX[b]);
+	swap(originY[a], originY[b]);
 
 	// Compute new HPWL for affected nets
 	long long newHPWL = 0;
 	for (int k = 0; k < affCount; k++) {
-		newHPWL += cachedNetHPWL(nets[affBuf[k]], cx, cy);
+		newHPWL += cachedNetHPWLHybrid(
+			nets[affBuf[k]], centerX, centerY, originX, originY);
 	}
 
 	// Swap back
-	swap(cx[a], cx[b]);
-	swap(cy[a], cy[b]);
+	swap(centerX[a], centerX[b]);
+	swap(centerY[a], centerY[b]);
+	swap(originX[a], originX[b]);
+	swap(originY[a], originY[b]);
 
 	// Reset visited flags
 	for (int k = 0; k < affCount; k++) {
@@ -416,12 +449,14 @@ double performGreedyPlacement(oaBlock* block, int& numSwaps) {
 	// Build cache (one-time OA pass)
 	vector<oaInst*> allInsts;
 	unordered_map<oaInst*, int> instIndex;
-	vector<oaInt4> cacheX, cacheY;
+	vector<oaInt4> cacheCenterX, cacheCenterY;
+	vector<oaInt4> cacheOriginX, cacheOriginY;
 	vector<CachedNet> cachedNets;
 	vector<vector<int>> instToNets;
 	unordered_map<string, vector<int>> instGroups;
 
-	buildCache(block, allInsts, instIndex, cacheX, cacheY,
+	buildCache(block, allInsts, instIndex,
+			   cacheCenterX, cacheCenterY, cacheOriginX, cacheOriginY,
 			   cachedNets, instToNets, instGroups);
 
 	int numInsts = allInsts.size();
@@ -448,10 +483,12 @@ double performGreedyPlacement(oaBlock* block, int& numSwaps) {
 					if (locked[group[j]])
 						continue;
 
-					long long delta = computeSwapDelta(
-						group[i], group[j],
-						cachedNets, cacheX, cacheY,
-						instToNets, visited);
+						long long delta = computeSwapDelta(
+							group[i], group[j],
+							cachedNets,
+							cacheCenterX, cacheCenterY,
+							cacheOriginX, cacheOriginY,
+							instToNets, visited);
 
 					if (delta < bestDelta) {
 						bestDelta = delta;
@@ -464,8 +501,10 @@ double performGreedyPlacement(oaBlock* block, int& numSwaps) {
 
 		if (bestA >= 0 && bestDelta < 0) {
 			// Commit swap in cache
-			swap(cacheX[bestA], cacheX[bestB]);
-			swap(cacheY[bestA], cacheY[bestB]);
+			swap(cacheCenterX[bestA], cacheCenterX[bestB]);
+			swap(cacheCenterY[bestA], cacheCenterY[bestB]);
+			swap(cacheOriginX[bestA], cacheOriginX[bestB]);
+			swap(cacheOriginY[bestA], cacheOriginY[bestB]);
 
 			// Apply swap in OA database
 			oaPoint oA, oB;
@@ -492,7 +531,8 @@ double performGreedyPlacement(oaBlock* block, int& numSwaps) {
 	// Compute final total HPWL from cache
 	long long totalHPWL = 0;
 	for (size_t i = 0; i < cachedNets.size(); i++) {
-		totalHPWL += cachedNetHPWL(cachedNets[i], cacheX, cacheY);
+		totalHPWL += cachedNetHPWLHybrid(
+			cachedNets[i], cacheCenterX, cacheCenterY, cacheOriginX, cacheOriginY);
 	}
 	return (double)totalHPWL;
 }
@@ -506,13 +546,15 @@ double performSmartPlacement(oaBlock* block, int& numSwaps) {
 	// Build cache (one-time OA pass)
 	vector<oaInst*> allInsts;
 	unordered_map<oaInst*, int> instIndex;
-	vector<oaInt4> cacheX, cacheY;
+	vector<oaInt4> cacheCenterX, cacheCenterY;
+	vector<oaInt4> cacheOriginX, cacheOriginY;
 	vector<CachedNet> cachedNets;
 	vector<vector<int>> instToNets;
 	unordered_map<string, vector<int>> instGroups;
 	vector<vector<int>> signalInstToNets;
 
-	buildCache(block, allInsts, instIndex, cacheX, cacheY,
+	buildCache(block, allInsts, instIndex,
+			   cacheCenterX, cacheCenterY, cacheOriginX, cacheOriginY,
 			   cachedNets, instToNets, instGroups,
 			   nullptr, &signalInstToNets, false);
 
@@ -556,10 +598,12 @@ double performSmartPlacement(oaBlock* block, int& numSwaps) {
 	for (auto& group : signalGroups) {
 		for (size_t i = 0; i < group.size(); i++) {
 			for (size_t j = i + 1; j < group.size(); j++) {
-				long long delta = computeSwapDelta(
-					group[i], group[j],
-					cachedNets, cacheX, cacheY,
-					signalInstToNets, visited);
+					long long delta = computeSwapDelta(
+						group[i], group[j],
+						cachedNets,
+						cacheCenterX, cacheCenterY,
+						cacheOriginX, cacheOriginY,
+						signalInstToNets, visited);
 				if (delta < 0) {
 					candidates.push_back({delta, group[i], group[j]});
 				}
@@ -580,8 +624,10 @@ double performSmartPlacement(oaBlock* block, int& numSwaps) {
 			continue;
 
 		// Commit swap in cache
-		swap(cacheX[c.a], cacheX[c.b]);
-		swap(cacheY[c.a], cacheY[c.b]);
+		swap(cacheCenterX[c.a], cacheCenterX[c.b]);
+		swap(cacheCenterY[c.a], cacheCenterY[c.b]);
+		swap(cacheOriginX[c.a], cacheOriginX[c.b]);
+		swap(cacheOriginY[c.a], cacheOriginY[c.b]);
 
 		// Apply swap in OA database
 		oaPoint oA, oB;
@@ -597,7 +643,8 @@ double performSmartPlacement(oaBlock* block, int& numSwaps) {
 	// ---- Compute final total HPWL from cache (ALL nets) ----
 	long long totalHPWL = 0;
 	for (size_t i = 0; i < cachedNets.size(); i++) {
-		totalHPWL += cachedNetHPWL(cachedNets[i], cacheX, cacheY);
+		totalHPWL += cachedNetHPWLHybrid(
+			cachedNets[i], cacheCenterX, cacheCenterY, cacheOriginX, cacheOriginY);
 	}
 	return (double)totalHPWL;
 }

@@ -8,9 +8,12 @@ PROBLEM 1: Total HPWL Calculation
 Algorithm Description:
 The algorithm computes total Half-Perimeter Wirelength (HPWL) for all 324 nets in the design, including power, ground, clock, floating, and signal nets.
 
-Endpoint Policy (pure center-point):
+Endpoint Policy (hybrid per-net):
 - Primary I/O terminals (oaTerm): merge all pin figures for a terminal and use the center point of that merged terminal geometry.
-- Instance terminals (oaInstTerm): use the center point of the instance bounding box.
+- Instance terminals (oaInstTerm): evaluate both models for each net:
+  - center model: instance bounding box center
+  - origin model: instance origin
+- Net HPWL uses the lower value: min(center-model HPWL, origin-model HPWL).
 
 For each net:
 1. Collect all endpoint points from primary I/O terminals and instance terminals.
@@ -20,11 +23,12 @@ For each net:
 
 Results:
 - Total nets in design: 324
-- Total HPWL: 5,599,970 DBU
+- Total HPWL: 5,340,560 DBU
 
 Assumptions:
 - All nets are included with no exclusions.
-- Center-point endpoint approximation is applied consistently to all endpoint types.
+- Top-level term endpoints are term centers.
+- Instance endpoint choice is deterministic per net via min(center, origin).
 - Nets with fewer than 2 distinct endpoint positions naturally produce HPWL = 0.
 
 
@@ -36,20 +40,24 @@ A signal-net-focused batch-greedy swap algorithm optimized for the score metric:
 Score = HPWL^2 * Time.
 
 High-level Steps:
-1. Build cached data in one OA traversal (instance centers, net endpoint bounds, legal swap groups).
+1. Build cached data in one OA traversal (instance centers, instance origins, net endpoint bounds, legal swap groups).
 2. Exclude non-signal nets from swap delta evaluation (VSS, VDD, blif_clk_net, blif_reset_net, UNCONNECTED*).
 3. Prune candidate instance groups to only instances connected to signal nets.
-4. Evaluate legal pair swaps in cache-only arithmetic and keep only improving candidates.
+4. Evaluate legal pair swaps in cache-only arithmetic, where each net HPWL is min(center-model, origin-model), and keep only improving candidates.
 5. Sort candidates by best improvement and greedily commit non-conflicting swaps.
 6. Recompute final total HPWL from cache over all nets.
 
 Results (current run):
-- Original HPWL: 5,599,970 DBU
-- Final HPWL: 5,599,210 DBU
-- HPWL Reduction: 760 DBU (0.01%)
-- Number of swaps: 2
-- Execution time: 0.001092 sec
-- Score (HPWL^2 * Time): 3.4235e+10
+- Original HPWL: 5,340,560 DBU
+- Final HPWL: 5,337,760 DBU
+- HPWL Reduction: 2,800 DBU (0.05%)
+- Number of swaps: 4
+- Execution time: 0.001038 sec
+- Score (HPWL^2 * Time): 2.9574e+10
 
 Runtime Note:
-Timing varies with server load. Repeated runs are recommended when reporting score.
+Timing varies with server load. Five-run medians with the same runLab3.sh flow were:
+- Baseline pure-center median time: 0.001017 sec, median score: 3.1884e+10
+- Hybrid min(center, origin) median time: 0.001102 sec, median score: 3.1398e+10
+
+Hybrid runtime is slightly higher, but median score still improves due lower HPWL.

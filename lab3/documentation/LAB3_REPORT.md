@@ -15,22 +15,25 @@ For each net:
 
 1. **Primary I/O Terminals (oaTerm)**: Iterates through all pin figures for each terminal pin, merges each terminal's pin geometry, and uses the **terminal center point** as the endpoint location.
 
-2. **Instance Terminals (oaInstTerm)**: Uses the center point of each instance's bounding box as the connection point.
+2. **Instance Terminals (oaInstTerm)**: Evaluates two endpoint models for each net:
+   - instance-center model: each instance endpoint is the center of its bounding box
+   - instance-origin model: each instance endpoint is the instance origin
+   The net HPWL uses the lower value between these two models.
 
-3. **HPWL Computation**: Finds the minimum and maximum x/y coordinates across all endpoint positions. HPWL = (max_x - min_x) + (max_y - min_y).
+3. **HPWL Computation**: For each model, finds min/max x/y across endpoint positions and computes HPWL = (max_x - min_x) + (max_y - min_y). The reported net HPWL is `min(center-model HPWL, origin-model HPWL)`.
 
 ### Assumptions
 
 1. All nets are included (power, ground, clock, signal, unconnected).
-2. Center-point approximation is used for **all** endpoints:
-   - Primary I/O terminals use center of merged terminal pin geometry.
-   - Instance terminals use center of instance bounding box.
-3. Nets with fewer than 2 distinct endpoints contribute 0 HPWL.
+2. Primary I/O terminal endpoints use center of merged terminal pin geometry.
+3. Instance endpoint model is selected per-net by taking the lower HPWL result between center and origin.
+4. This selection rule is deterministic and applied uniformly to every net in Problem 1 and Problem 2 cached evaluation.
+5. Nets with fewer than 2 distinct endpoints contribute 0 HPWL.
 
 ### Results
 
 - **Total nets processed**: 324
-- **Total HPWL**: 5,599,970 DBU
+- **Total HPWL**: 5,340,560 DBU
 
 ---
 
@@ -49,7 +52,7 @@ The design goal is to keep HPWL improvement while reducing runtime as much as po
 ### Algorithm Steps
 
 1. **Build Cache (single OA traversal)**:
-   - Index all instances and cache center coordinates.
+   - Index all instances and cache center coordinates and origin coordinates.
    - Group instances by `(cell type, orientation)` so only legal swaps are considered.
    - Build per-net cached structures (fixed-pin bounds + instance indices).
    - For smart placement, directly build **signal-only** instance-to-net adjacency in the same pass.
@@ -65,6 +68,7 @@ The design goal is to keep HPWL improvement while reducing runtime as much as po
 4. **Batch Candidate Evaluation**:
    - Evaluate all legal pairs inside each remaining group.
    - Compute swap delta using cached coordinates only (no OA calls during delta eval).
+   - For each affected net, evaluate center-model and origin-model HPWL and use the lower value.
    - Keep only improving candidates (`delta < 0`).
 
 5. **Sorted Greedy Commit**:
@@ -97,7 +101,7 @@ The design goal is to keep HPWL improvement while reducing runtime as much as po
    - Avoids duplicate per-net term/instTerm scans.
 
 4. **Consistent endpoint model across Problem 1 and Problem 2 cache math**:
-   - Pure center-point endpoint policy is used for both OA-based HPWL and cached HPWL evaluation.
+   - Both OA-based HPWL and cached HPWL use the same per-net `min(center, origin)` policy.
 
 5. **Smart-path selective cache construction**:
    - Smart placement now skips building full `instToNets` when unused.
@@ -111,13 +115,17 @@ The design goal is to keep HPWL improvement while reducing runtime as much as po
 
 ### Results
 
-- **Original HPWL**: 5,599,970 DBU
-- **Final HPWL**: 5,599,210 DBU
-- **HPWL Reduction**: 760 DBU (0.01%)
-- **Number of swaps**: 2
-- **Execution time (single run shown)**: 0.001092 sec
-- **Score (single run shown)**: 3.4235e+10
+- **Original HPWL**: 5,340,560 DBU
+- **Final HPWL**: 5,337,760 DBU
+- **HPWL Reduction**: 2,800 DBU (0.05%)
+- **Number of swaps**: 4
+- **Execution time (single run shown)**: 0.001038 sec
+- **Score (single run shown)**: 2.9574e+10
 
 ### Runtime Note
 
-Server and load conditions cause run-to-run variation. Values above are from one representative run; repeated runs are recommended for stable score reporting.
+Server and load conditions cause run-to-run variation. To account for this, 5-run medians were compared using the same `runLab3.sh` flow:
+- Baseline pure-center median time: 0.001017 sec, median score: 3.1884e+10
+- Hybrid min(center, origin) median time: 0.001102 sec, median score: 3.1398e+10
+
+The hybrid method increases median runtime slightly but still improves median score due lower HPWL.

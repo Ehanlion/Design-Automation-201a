@@ -3,6 +3,7 @@
 # Run:  cd lab4 && innovus -batch -no_gui -init lab4_part1.tcl
 
 # CHANGED: filled in skeleton "???" placeholders with actual filenames
+# These are provided files and not generated files by me
 set netlist "s1494_synth.v"
 set top_cell "s1494_bench"
 set sdc "s1494.sdc"
@@ -13,6 +14,7 @@ set OUTPUTDIR output
 # CHANGED: utilization from 0.99 to 0.991 -- highest value that routes
 # cleanly with 4 metal layers and meets timing. At 0.992+ the floorplan
 # snaps to a smaller row-quantized core that causes 781+ DRC violations.
+# set UTIL 0.991
 set UTIL 0.991
 
 # ADDED: ensure output directory exists before any file writes

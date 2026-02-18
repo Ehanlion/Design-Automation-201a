@@ -125,7 +125,16 @@ update_results_submission_from_part1() {
     fi
 
     initial_util="$(sed -n 's/^[[:space:]]*set[[:space:]]\+UTIL[[:space:]]\+\([0-9][0-9.]*\).*/\1/p' "$tcl_source" | head -n 1)"
-    final_util="$(sed -n 's/.*Effective Utilization:[[:space:]]*\([^[:space:]]\+\).*/\1/p' "$summary_source" | head -n 1)"
+    # Use "Core Density #2 (Subtracting Physical Cells)" — the real logic
+    # utilization after the tool finishes, excluding filler cells.
+    # "Effective Utilization" includes fillers and always reads ~1.0.
+    local pct
+    pct="$(grep 'Core Density #2' "$summary_source" | sed -n 's/.*:[[:space:]]*\([0-9.]*\)%.*/\1/p' | head -n 1)"
+    if [ -n "$pct" ]; then
+        final_util="$(awk "BEGIN { printf \"%.5f\", $pct / 100 }")"
+    else
+        final_util=""
+    fi
     final_setup_slack="$(grep -m1 'Slack Time' "$setup_source" | awk '{print $NF}' || true)"
 
     if [ -z "$initial_util" ] || [ -z "$final_util" ] || [ -z "$final_setup_slack" ]; then

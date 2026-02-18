@@ -7,6 +7,6 @@ LAB4
 PROBLEM1:
     // for final util, pay close attention to the report - it is util *after* the tool has ran
     INITIAL_UTILL: 0.991
-    FINAL_UTIL: 1.0000e+00
+    FINAL_UTIL: 0.98172
     FINAL_SETUP_SLACK: 0.518
 ###########

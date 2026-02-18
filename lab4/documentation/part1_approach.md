@@ -2,103 +2,207 @@
 
 ## Objective
 
-Determine the minimum design area for the ISCAS89 s1494 circuit while meeting
-setup and hold timing constraints and without any design-rule violations.
-Constraints: cannot change the number of routing layers (4) or the DRC check
-method (`verifyGeometry`).
+Determine the minimum physical layout area for the ISCAS89 s1494 circuit
+(Nangate 45 nm) while satisfying three constraints:
 
-## Approach
+1. Setup timing slack >= 0
+2. Hold timing slack >= 0
+3. Zero design-rule violations (DRC clean)
 
-**Key insight:** minimum area corresponds to maximum cell utilization. The
-`floorplan -r 1.0 <UTIL> 6 6 6 6` command determines the core area as
-`(total_cell_area / UTIL)`, with 6 um margins on all sides. Higher utilization
-produces a smaller core and therefore a smaller total chip area.
+Two additional restrictions from the lab: the number of routing layers (4,
+`setMaxRouteLayer 4`) and the DRC check method (`verifyGeometry` flags) may
+not be changed.
 
-### Strategy: iterative utilization sweep
+## Key Insight
 
-1. Started with a conservative utilization (0.90) to verify the end-to-end
-   flow runs cleanly with no Innovus errors.
-2. Pushed to the skeleton default of 0.99 -- passed all checks.
-3. Tried 0.991 -- passed (same physical floorplan as 0.99 due to row height
-   quantization in the Nangate 45 nm library, where rows are 1.4 um tall).
-4. Tried 0.992 and 0.995 -- both hit severe routing congestion (781+
-   violations in detail routing that do not converge). The floorplan
-   quantization creates a smaller core at these values, and 4 metal layers
-   cannot accommodate the routing demand at that density.
+Minimum area = maximum cell utilization. The Innovus `floorplan` command
+computes core area as approximately `total_cell_area / target_utilization`.
+Higher utilization produces a smaller core, and therefore a smaller chip
+(chip = core + margins). The 6 um margins on all sides and the power ring
+(`addRing`) are fixed, so the only lever is utilization.
 
-**Conclusion:** the maximum feasible target utilization is **0.991**, which maps
-to the same physical floorplan as any value in \[0.99, 0.991\]. At 0.992+ the
-floorplan snaps to a smaller quantum that is unroutable with 4 layers.
+## Script Changes from the Skeleton
 
-### Script modifications from the skeleton
+The submission script `lab4_part1.tcl` was derived from the provided
+`lab4_skeleton.tcl`. Four changes were made; everything else (flow order,
+`setMaxRouteLayer 4`, `verifyGeometry` flags, `addRing` parameters, CTS
+buffer/inverter cell lists, etc.) is unchanged.
 
-The `lab4_skeleton.tcl` was modified as follows:
+### Change 1 -- Fill in placeholder values
 
-- Filled in the `???` placeholders: `s1494_synth.v`, `s1494_bench`,
-  `s1494.sdc`, `NangateOpenCellLibrary.lef`.
-- Made the target utilization configurable via the `LAB4_UTIL` environment
-  variable (default 0.991).
-- Made the output directory configurable via `LAB4_OUTPUTDIR`.
-- Added a post-route **setup** optimization pass (`optDesign -postRoute`)
-  before the hold optimization, which the original skeleton omitted.
-- Changed `saveDesign` to write to the output directory with a meaningful name.
-- Added `exit` at the end for batch-mode operation.
+The skeleton had `"???"` for four config variables. These were set to the
+provided lab files:
 
-Everything else -- the flow order, `setMaxRouteLayer 4`, `verifyGeometry`
-flags, `addRing` parameters, CTS buffer/inverter cell lists, etc. -- is
-unchanged from the skeleton.
+| Variable   | Skeleton value | Part 1 value                    |
+|------------|----------------|---------------------------------|
+| `netlist`  | `"???"`        | `"s1494_synth.v"`               |
+| `top_cell` | `"???"`        | `"s1494_bench"`                 |
+| `sdc`      | `"???"`        | `"s1494.sdc"`                   |
+| `lef`      | `"???"`        | `"NangateOpenCellLibrary.lef"`  |
 
-## Results
+### Change 2 -- Target utilization: 0.99 to 0.991
 
-### Utilization sweep summary
+The skeleton default was `set UTIL 0.99`. This was changed to `0.991`, the
+highest target utilization that produces a DRC-clean, timing-met design.
+See the utilization sweep below for justification.
 
-| Target Util | Core Area (um^2) | Chip Area (um^2) | Setup Slack | Hold Slack | DRC Violations | Status |
-|-------------|------------------|-------------------|-------------|------------|----------------|--------|
-| 0.90        | 383.838          | 1005.480          | 0.527       | 0.017      | 0              | PASS   |
-| 0.99        | 349.258          | 948.024           | 0.518       | 0.017      | 0              | PASS   |
-| 0.991       | 349.258          | 948.024           | 0.518       | 0.017      | 0              | PASS   |
-| 0.992       | (smaller)        | --                | --          | --         | 781+           | FAIL   |
-| 0.995       | (smaller)        | --                | --          | --         | 781+           | FAIL   |
+### Change 3 -- Post-route optimization: add setup pass
 
-### Final result (target util = 0.991)
+The skeleton only optimized for hold after routing:
 
-| Metric                                       | Value        |
-|----------------------------------------------|--------------|
-| Initial (target) cell utilization            | 0.991        |
-| Final (actual) design density                | 98.17%       |
-| Logic cell area (excluding fillers)          | 342.874 um^2 |
-| Total standard cell area (including fillers) | 349.258 um^2 |
-| Core area                                    | 349.258 um^2 |
-| Chip area                                    | 948.024 um^2 |
-| Worst-case setup slack                       | 0.518 ns     |
-| Worst-case hold slack                        | 0.017 ns     |
-| DRC violations                               | 0            |
-| Effective utilization                        | 1.0000       |
+```tcl
+optDesign -hold -postRoute
+```
 
-### Why this is the minimum area
+This was changed to optimize for both setup and hold:
 
-- At 0.991, the core is 349.258 um^2 with 0 DRC violations and positive
-  timing slack on both setup and hold.
-- Going to 0.992 or higher causes the floorplan to snap to a smaller core
-  (next row-quantization step). At that density, the 4-layer routing resource
-  is insufficient: the detail router produces 781+ violations that do not
-  converge across multiple optimization iterations.
-- The limiting factor is **routing congestion**, not timing. Both setup and
-  hold have comfortable margin (0.518 ns and 0.017 ns respectively), but the
-  metal layers cannot physically accommodate the wiring at smaller core sizes.
+```tcl
+optDesign -postRoute
+optDesign -postRoute -hold
+```
 
-## How to reproduce
+Routing can introduce new setup violations due to added wire delay. Running
+the setup pass first, then the hold pass, ensures both are addressed.
+
+### Change 4 -- saveDesign path and batch exit
+
+The skeleton had a placeholder save path and no `exit`:
+
+```tcl
+saveDesign Lastname-Firstname_UID_username_Lab4_3.invs
+```
+
+Changed to write into the output directory, and `exit` was appended so
+batch mode terminates automatically:
+
+```tcl
+saveDesign ${OUTPUTDIR}/${DNAME}_part1.invs
+...
+exit
+```
+
+A `file mkdir $OUTPUTDIR` was also added near the top so the output
+directory is created if it does not exist.
+
+## Utilization Sweep
+
+To find the maximum utilization, multiple runs were performed with
+different target values. The script was run via:
+
+```
+cd lab4/scripts && ./runLab4.sh <utilization>
+```
+
+Results were parsed automatically by `extract_results.sh`.
+
+### Sweep Results
+
+| Target Util | Core Area (um^2) | Chip Area (um^2) | Setup Slack (ns) | Hold Slack (ns) | DRC Violations | Result |
+|-------------|------------------|------------------|------------------|-----------------|----------------|--------|
+| 0.90        | 383.838          | 1,005.480        | 0.527            | 0.017           | 0              | PASS   |
+| 0.99        | 349.258          | 948.024          | 0.518            | 0.017           | 0              | PASS   |
+| 0.991       | 349.258          | 948.024          | 0.518            | 0.017           | 0              | PASS   |
+| 0.992       | (smaller)        | --               | --               | --              | 781+           | FAIL   |
+| 0.995       | (smaller)        | --               | --               | --              | 781+           | FAIL   |
+
+### Why 0.99 and 0.991 give the same physical result
+
+The Nangate 45 nm library has a standard cell row height of 1.4 um. The
+`floorplan` command quantizes the core dimensions to whole multiples of
+this row height. Both 0.99 and 0.991 land on the same quantized core
+(18.62 um x 18.76 um = 349.258 um^2). At 0.992 and above, the target
+is tight enough that the floorplan snaps to the next smaller quantum --
+a core that is physically too small for the routing resources available
+with only 4 metal layers.
+
+### Why 0.992+ fails
+
+At 0.992+, the detail router starts with 781 violations (metal spacing,
+shorts, cut spacing) and fails to converge across multiple optimization
+iterations. The violations actually *increase* during optimization (to
+921) before slowly decreasing (to 789) without reaching zero. The root
+cause is routing congestion: with a smaller core, wires are packed
+tighter but only 4 metal layers are available, providing insufficient
+routing resource to avoid DRC violations.
+
+The limiting factor is **routing**, not timing -- at 0.991 both setup and
+hold slack have comfortable positive margin.
+
+## Final Results (target util = 0.991)
+
+These values come from the Innovus `summary.rpt` and the final timing
+reports (`s1494_postrouting_setup.tarpt`, `s1494_postrouting_hold.tarpt`).
+
+| Metric                                              | Value          |
+|-----------------------------------------------------|----------------|
+| Initial (target) cell utilization                   | 0.991          |
+| Final cell utilization (Core Density #2, excl. fillers) | 98.172%    |
+| Logic cell area (excluding filler cells)            | 342.874 um^2   |
+| Total standard cell area (including fillers)        | 349.258 um^2   |
+| Core area                                           | 349.258 um^2   |
+| Chip area                                           | 948.024 um^2   |
+| Worst-case setup slack                              | 0.518 ns       |
+| Worst-case hold slack                               | 0.017 ns       |
+| DRC violations                                      | 0              |
+
+### Understanding the utilization numbers
+
+- **Initial utilization (0.991)**: the value passed to `floorplan -r 1.0
+  0.991 6 6 6 6`. This is a *request* to Innovus for how tightly to size
+  the core relative to the logic cell area.
+
+- **Final utilization (98.172%)**: the `% Core Density #2 (Subtracting
+  Physical Cells)` from `summary.rpt`. This is the actual fraction of the
+  core occupied by real logic cells after the tool has completed placement,
+  CTS buffer insertion, optimization, routing, and filler cell insertion.
+  It is lower than 0.991 because the floorplan is quantized to row heights,
+  so the core ends up slightly larger than `342.874 / 0.991`.
+
+- **Effective Utilization (1.0000)**: this metric from `summary.rpt`
+  counts filler cells as utilized area. Since fillers fill every remaining
+  gap, it reads 1.0. This is *not* the final utilization the lab asks for.
+
+## Submission Files
+
+The Tcl script generates all required Part 1 submission artifacts:
+
+| Generated file                  | Submission name         |
+|---------------------------------|-------------------------|
+| `output/s1494_part1.invs`       | `*_Lab4_1.invs`         |
+| `output/s1494_part1.invs.dat/`  | `*_Lab4_1.invs.dat`     |
+| `lab4_part1.tcl` (script itself)| `*_Lab4_1.tcl`          |
+
+The `tar.sh` script auto-extracts the results into `results_submission.txt`:
+
+```
+INITIAL_UTILL: 0.991
+FINAL_UTIL: 0.98172
+FINAL_SETUP_SLACK: 0.518
+```
+
+## How to Reproduce
+
+Run the static submission script directly:
 
 ```bash
 cd lab4/scripts
+./runLab4Part1.sh
+```
+
+Or run the testing harness at any utilization:
+
+```bash
 ./runLab4.sh 0.991
 ```
 
-Or specify a different utilization:
+Clean all generated files:
 
 ```bash
-./runLab4.sh 0.95
+./clean.sh
 ```
 
-Results are written to `lab4/output/run_<timestamp>_util<UTIL>/` and a summary
-is automatically printed at the end via `extract_results.sh`.
+Extract a summary from an existing output directory:
+
+```bash
+./extract_results.sh ../output
+```

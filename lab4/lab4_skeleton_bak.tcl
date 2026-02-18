@@ -1,35 +1,18 @@
 # UCLA EE 201A -- VLSI Design Automation
-# Winter 2026
-# Lab 4 Part 1 Tcl Script (based on skeleton)
+# Winter 2021
+# Lab 4 Skeleton Tcl Script
 # ----------------------------------------
-# Run via:  scripts/runLab4.sh [utilization]
-# Or directly:  cd lab4 && innovus -batch -no_gui -init lab4_skeleton.tcl
+# Use the following command to run:
+# 	$ innovus -win -init lab4_skeleton.tcl
 # ----------------------------------------
-
-# ---------- configurable via environment ----------
-if {[info exists ::env(LAB4_UTIL)]} {
-    set UTIL $::env(LAB4_UTIL)
-} else {
-    set UTIL 0.991
-}
-if {[info exists ::env(LAB4_OUTPUTDIR)]} {
-    set OUTPUTDIR $::env(LAB4_OUTPUTDIR)
-} else {
-    set OUTPUTDIR output
-}
-file mkdir $OUTPUTDIR
 
 # Setup design config
-set netlist "s1494_synth.v"
-set top_cell "s1494_bench"
-set sdc "s1494.sdc"
-set lef "NangateOpenCellLibrary.lef"
+set netlist "???"
+set top_cell "???"
+set sdc "???"
+set lef "???"
 set DNAME s1494
-
-puts "============================================"
-puts "  Lab 4 Part 1  --  target util = $UTIL"
-puts "  Output dir: $OUTPUTDIR"
-puts "============================================"
+set OUTPUTDIR output
 
 # Initialize design
 suppressMessage TECHLIB-436
@@ -54,7 +37,9 @@ report_timing -early -nworst  10 -net > ${OUTPUTDIR}/${DNAME}_init_hold.tarpt
 setMaxRouteLayer 4
 
 # Specify floorplan dimensions and placement utilization
+set UTIL 0.99
 floorplan -r 1.0 $UTIL 6 6 6 6
+
 
 # Define global power nets
 globalNetConnect VDD -type pgpin -pin VDD -inst * -module {}
@@ -134,19 +119,18 @@ globalNetConnect VSS -type pgpin -pin VSS -override
 # Run global and detailed routing
 globalDetailRoute
 
-# Optimize post routing (both setup and hold)
-optDesign -postRoute
-optDesign -postRoute -hold
+# Optimize post routing
+optDesign -hold -postRoute
 
 # Extract RC delays
 setExtractRCMode -engine postRoute
 extractRC
 
-# Report final hold timing
+# Report timing
 buildTimingGraph
 report_timing -nworst 10 -net > ${OUTPUTDIR}/${DNAME}_postrouting_hold.tarpt
 
-# Report final setup timing
+# Report setup time
 setAnalysisMode -checkType setup -asyncChecks async -skew true
 buildTimingGraph
 report_timing -nworst 10 -net > ${OUTPUTDIR}/${DNAME}_postrouting_setup.tarpt
@@ -167,20 +151,18 @@ saveNetlist -excludeLeafCell ${OUTPUTDIR}/${DNAME}_postrouting.v
 summaryReport -noHtml -outfile ${OUTPUTDIR}/summary.rpt
 reportGateCount -level 10 -outfile ${OUTPUTDIR}/gate_count.rpt
 checkDesign -io -netlist -physicalLibrary -powerGround -tieHilo -timingLibrary -floorplan -place -noHtml -outfile ${OUTPUTDIR}/design.rpt
-saveDesign ${OUTPUTDIR}/${DNAME}_part1.invs
+saveDesign Lastname-Firstname_UID_username_Lab4_3.invs
 
 puts "*************************************************************"
-puts "* Innovus script finished  (target util = $UTIL)"
+puts "* Innovus script finished"
 puts "*"
 puts "* Results:"
 puts "* --------"
 puts "* Layout:  ${OUTPUTDIR}/${DNAME}.gds"
 puts "* Netlist: ${OUTPUTDIR}/${DNAME}_postrouting.v"
 puts "* Timing:  ${OUTPUTDIR}/${DNAME}_postrouting_setup.tarpt"
-puts "*          ${OUTPUTDIR}/${DNAME}_postrouting_hold.tarpt"
 puts "* DRC:     ${OUTPUTDIR}/${DNAME}.drc.rpt"
-puts "* Summary: ${OUTPUTDIR}/summary.rpt"
+puts "*"
+puts "* Type 'exit' to quit"
 puts "*"
 puts "*************************************************************"
-
-exit

@@ -41,7 +41,16 @@ if [ -f "$DRC_RPT" ]; then
         DRC_COUNT=0
         echo "  DRC violations:      0 (CLEAN)"
     else
-        DRC_COUNT=$(grep -oP '\d+(?= violation)' "$DRC_RPT" 2>/dev/null | head -1 || echo "?")
+        # Handle both common Innovus formats:
+        #   "Total Violations : N Viols."
+        #   "... N violation(s) ..."
+        DRC_COUNT="$(sed -n 's/.*Total Violations[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$DRC_RPT" | head -1)"
+        if [ -z "$DRC_COUNT" ]; then
+            DRC_COUNT="$(grep -Eo '[0-9]+[[:space:]]+violation' "$DRC_RPT" 2>/dev/null | head -1 | awk '{print $1}')"
+        fi
+        if [ -z "$DRC_COUNT" ]; then
+            DRC_COUNT="?"
+        fi
         echo "  DRC violations:      $DRC_COUNT"
     fi
 else

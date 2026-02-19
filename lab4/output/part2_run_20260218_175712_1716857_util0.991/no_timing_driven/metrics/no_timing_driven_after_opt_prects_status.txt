@@ -1,0 +1,7 @@
+checkpoint=after_opt_prects
+setup_report=/u/ee/ugrad/palatics/ee201a/lab4/output/part2_run_20260218_175712_1716857_util0.991/no_timing_driven/metrics/no_timing_driven_after_opt_prects_setup.tarpt
+hold_report=/u/ee/ugrad/palatics/ee201a/lab4/output/part2_run_20260218_175712_1716857_util0.991/no_timing_driven/metrics/no_timing_driven_after_opt_prects_hold.tarpt
+power_report=/u/ee/ugrad/palatics/ee201a/lab4/output/part2_run_20260218_175712_1716857_util0.991/no_timing_driven/metrics/no_timing_driven_after_opt_prects_power.rpt
+setup_ok=1
+hold_ok=1
+power_ok=1

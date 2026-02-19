@@ -9,6 +9,8 @@ set -euo pipefail
 #     <PREFIX>_Lab4_1.invs
 #     <PREFIX>_Lab4_1.invs.dat/
 #     <PREFIX>_Lab4_2.tcl
+#     <PREFIX>_Lab4_2.invs
+#     <PREFIX>_Lab4_2.invs.dat/
 #     <PREFIX>_Lab4_3.tcl
 #     <PREFIX>_Lab4_3.invs
 #     <PREFIX>_Lab4_3.invs.dat/
@@ -64,6 +66,8 @@ latest_doc_pdf_match() {
 
 LATEST_PART1_INVS="$(latest_output_match "s1494_part1.invs")"
 LATEST_PART1_INVS_DAT="$(latest_output_match "s1494_part1.invs.dat")"
+LATEST_PART2_NOTD_INVS="$(latest_output_match "s1494_no_timing_driven.invs")"
+LATEST_PART2_NOTD_INVS_DAT="$(latest_output_match "s1494_no_timing_driven.invs.dat")"
 LATEST_PART3_INVS="$(latest_output_match "s1494_part3.invs")"
 LATEST_PART3_INVS_DAT="$(latest_output_match "s1494_part3.invs.dat")"
 LATEST_SUMMARY_RPT="$(latest_output_match "summary.rpt")"
@@ -229,10 +233,27 @@ copy_from_candidates "${PREFIX}_Lab4_1.invs.dat" \
     "$SUBMISSIONS_DIR/${PREFIX}_Lab4_1.invs.dat"
 
 copy_from_candidates "${PREFIX}_Lab4_2.tcl" \
+    "$LAB4_DIR/lab4_part2_no_timing_driven.tcl" \
+    "$LAB4_DIR/lab4_part2_notimingdriven.tcl" \
+    "$LAB4_DIR/lab4_part2_noTimingDriven.tcl" \
     "$LAB4_DIR/lab4_part2.tcl" \
     "$LAB4_DIR/lab4_2.tcl" \
     "$LAB4_DIR/${PREFIX}_Lab4_2.tcl" \
     "$SUBMISSIONS_DIR/${PREFIX}_Lab4_2.tcl"
+
+copy_from_candidates "${PREFIX}_Lab4_2.invs" \
+    "$LAB4_DIR/results/no_timing_driven/s1494_no_timing_driven.invs" \
+    "$LAB4_DIR/output/s1494_no_timing_driven.invs" \
+    "$LATEST_PART2_NOTD_INVS" \
+    "$LAB4_DIR/${PREFIX}_Lab4_2.invs" \
+    "$SUBMISSIONS_DIR/${PREFIX}_Lab4_2.invs"
+
+copy_from_candidates "${PREFIX}_Lab4_2.invs.dat" \
+    "$LAB4_DIR/results/no_timing_driven/s1494_no_timing_driven.invs.dat" \
+    "$LAB4_DIR/output/s1494_no_timing_driven.invs.dat" \
+    "$LATEST_PART2_NOTD_INVS_DAT" \
+    "$LAB4_DIR/${PREFIX}_Lab4_2.invs.dat" \
+    "$SUBMISSIONS_DIR/${PREFIX}_Lab4_2.invs.dat"
 
 copy_from_candidates "${PREFIX}_Lab4_3.tcl" \
     "$LAB4_DIR/lab4_part3.tcl" \

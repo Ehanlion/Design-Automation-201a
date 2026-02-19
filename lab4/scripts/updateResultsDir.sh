@@ -68,6 +68,10 @@ copy_file_if_exists "$LAB4_DIR/scripts/runLab4Part1.sh" "$RUN_SCRIPTS_DIR/runLab
 copy_file_if_exists "$LAB4_DIR/scripts/runLab4Part2TD.sh" "$RUN_SCRIPTS_DIR/runLab4Part2TD.sh"
 copy_file_if_exists "$LAB4_DIR/scripts/runLab4Part2NoTD.sh" "$RUN_SCRIPTS_DIR/runLab4Part2NoTD.sh"
 copy_file_if_exists "$LAB4_DIR/scripts/runLab4Part3.sh" "$RUN_SCRIPTS_DIR/runLab4Part3.sh"
+copy_file_if_exists "$LAB4_DIR/scripts/runLab4Part3StaticNoStripes.sh" "$RUN_SCRIPTS_DIR/runLab4Part3StaticNoStripes.sh"
+copy_file_if_exists "$LAB4_DIR/scripts/runLab4Part3StaticWithStripes.sh" "$RUN_SCRIPTS_DIR/runLab4Part3StaticWithStripes.sh"
+copy_file_if_exists "$LAB4_DIR/scripts/runLab4Part3StaticBoth.sh" "$RUN_SCRIPTS_DIR/runLab4Part3StaticBoth.sh"
+copy_file_if_exists "$LAB4_DIR/scripts/summarizePart3.sh" "$RUN_SCRIPTS_DIR/summarizePart3.sh"
 copy_file_if_exists "$LAB4_DIR/scripts/clean.sh" "$RUN_SCRIPTS_DIR/clean.sh"
 copy_file_if_exists "$LAB4_DIR/scripts/tar.sh" "$RUN_SCRIPTS_DIR/tar.sh"
 copy_file_if_exists "$LAB4_DIR/scripts/submit.sh" "$RUN_SCRIPTS_DIR/submit.sh"
@@ -189,8 +193,16 @@ fi
 
 # Part 3 artifacts if already available.
 copy_file_if_exists "$LAB4_DIR/lab4_part3.tcl" "$SUBMIT_DIR/${PREFIX}_Lab4_3.tcl"
-P3_INVS="$LAB4_DIR/output/s1494_part3.invs"
-P3_INVS_DAT="$LAB4_DIR/output/s1494_part3.invs.dat"
+copy_file_if_exists "$LAB4_DIR/lab4_part3_static_no_stripes.tcl" "$SUBMIT_DIR/${PREFIX}_Lab4_3_static_no_stripes.tcl"
+copy_file_if_exists "$LAB4_DIR/lab4_part3_static_with_stripes.tcl" "$SUBMIT_DIR/${PREFIX}_Lab4_3_static_with_stripes.tcl"
+P3_INVS="$LAB4_DIR/results/part3_final_with_stripes/s1494_part3.invs"
+P3_INVS_DAT="$LAB4_DIR/results/part3_final_with_stripes/s1494_part3.invs.dat"
+if [ ! -e "$P3_INVS" ]; then
+    P3_INVS="$LAB4_DIR/output/s1494_part3.invs"
+fi
+if [ ! -e "$P3_INVS_DAT" ]; then
+    P3_INVS_DAT="$LAB4_DIR/output/s1494_part3.invs.dat"
+fi
 if [ ! -e "$P3_INVS" ]; then
     P3_INVS="$(latest_output_match "s1494_part3.invs")"
 fi
@@ -215,6 +227,7 @@ fi
 # Report and submission metadata.
 copy_file_if_exists "$LAB4_DIR/results_submission.txt" "$SUBMIT_DIR/${PREFIX}_Lab4_results_submission.txt"
 copy_file_if_exists "$LAB4_DIR/documentation/problem2.md" "$SUBMIT_DIR/problem2.md"
+copy_file_if_exists "$LAB4_DIR/documentation/problem3.md" "$SUBMIT_DIR/problem3.md"
 
 DOC_PDF="$(find "$LAB4_DIR/documentation" -maxdepth 1 -type f -name '*.pdf' | sort | tail -n 1 || true)"
 if [ -n "$DOC_PDF" ] && [ -f "$DOC_PDF" ]; then

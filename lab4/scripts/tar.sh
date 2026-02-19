@@ -262,12 +262,14 @@ copy_from_candidates "${PREFIX}_Lab4_3.tcl" \
     "$SUBMISSIONS_DIR/${PREFIX}_Lab4_3.tcl"
 
 copy_from_candidates "${PREFIX}_Lab4_3.invs" \
+    "$LAB4_DIR/results/part3_final_with_stripes/s1494_part3.invs" \
     "$LAB4_DIR/output/s1494_part3.invs" \
     "$LATEST_PART3_INVS" \
     "$LAB4_DIR/${PREFIX}_Lab4_3.invs" \
     "$SUBMISSIONS_DIR/${PREFIX}_Lab4_3.invs"
 
 copy_from_candidates "${PREFIX}_Lab4_3.invs.dat" \
+    "$LAB4_DIR/results/part3_final_with_stripes/s1494_part3.invs.dat" \
     "$LAB4_DIR/output/s1494_part3.invs.dat" \
     "$LATEST_PART3_INVS_DAT" \
     "$LAB4_DIR/${PREFIX}_Lab4_3.invs.dat" \

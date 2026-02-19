@@ -1,58 +1,39 @@
 # UCLA EE 201A -- VLSI Design Automation
 # Winter 2026 -- Lab 4 Part 3
-# Run example:
-#   cd lab4/scripts && ./runLab4Part3.sh 0.990 output
+# Run:  cd lab4/scripts && ./runLab4Part3.sh
+#
+# Same flow as Part 1 but with power stripes added for Problem 3 comparison.
 
-# @purpose: Configure target utilization and output location for Part 3 runs.
-# @logic: Allow run script overrides via environment variables for repeatable sweeps.
-# why: Part 3 requires re-running the full flow to find the highest feasible utilization with stripes.
-if {[info exists ::env(LAB4_UTIL)]} {
-    set UTIL $::env(LAB4_UTIL)
-} else {
-    set UTIL 0.990
-}
-if {[info exists ::env(LAB4_OUTPUTDIR)]} {
-    set OUTPUTDIR $::env(LAB4_OUTPUTDIR)
-} else {
-    set OUTPUTDIR output
-}
-if {[info exists ::env(LAB4_ENABLE_STRIPES)]} {
-    set ENABLE_STRIPES $::env(LAB4_ENABLE_STRIPES)
-} else {
-    set ENABLE_STRIPES 1
-}
-file mkdir $OUTPUTDIR
-
-# @purpose: Define fixed design/library inputs for s1494 in Nangate45.
-# @logic: Reuse the validated Part 1 input set to isolate Part 3 power-grid changes.
-# why: The assignment asks to evaluate the impact of stripes, not alter netlist/library context.
 set netlist "s1494_synth.v"
 set top_cell "s1494_bench"
 set sdc "s1494.sdc"
 set lef "NangateOpenCellLibrary.lef"
 set DNAME s1494
 
-# @purpose: Parameterize the required power stripe geometry.
-# @logic: Keep values explicit and in microns for direct mapping to assignment constraints.
-# why: Part 3 mandates M2 vertical stripes with specific width/spacing/offset.
+# Set the Initial Util Value here
+# Iterated over this, found 0.918 to be the max
+# Must be an issue with the metal strip here
+set UTIL 0.918
+
+set OUTPUTDIR results/part3_final_with_stripes
+file mkdir $OUTPUTDIR
+
+# Power stripe params (Problem 3: M2 vertical stripes)
+# Setup params according to the lab handout
 set STRIPE_LAYER metal2
 set STRIPE_DIRECTION vertical
 set STRIPE_WIDTH_UM 0.21
 set STRIPE_SPACING_UM 4.13
 set STRIPE_OFFSET_LEFT_UM 2.0
-# Innovus requires set-to-set distance when creating multiple net stripes.
-# Keep spacing at the required 4.13 um and use a larger set pitch for legality.
 set STRIPE_SET_DISTANCE_UM 8.26
 
+
 puts "============================================"
-puts "  Lab 4 Part 3  --  target util = $UTIL"
-puts "  Output dir: $OUTPUTDIR"
-puts "  Stripe layer: $STRIPE_LAYER ($STRIPE_DIRECTION)"
-puts "  Stripe width/spacing/offset (um): $STRIPE_WIDTH_UM / $STRIPE_SPACING_UM / $STRIPE_OFFSET_LEFT_UM"
-puts "  Stripe set-to-set distance (um): $STRIPE_SET_DISTANCE_UM"
-puts "  Stripe enabled: $ENABLE_STRIPES"
+puts "  Lab 4 Part 3  --  util = $UTIL, stripes enabled"
+puts "  Output: $OUTPUTDIR"
 puts "============================================"
 
+# Set Design Params
 suppressMessage TECHLIB-436
 suppressMessage IMPVL-159
 set init_verilog $netlist
@@ -62,7 +43,11 @@ set init_top_cell $top_cell
 set init_lef_file $lef
 set init_pwr_net VDD
 set init_gnd_net VSS
+
+# Source the RC model
 source ./rc.mmode.tcl
+
+# Start the design simulation here
 init_design -setup _default_view_ -hold _default_view_
 setAnalysisMode -analysisType onChipVariation -cppr both
 setDesignMode -process 45
@@ -70,40 +55,22 @@ setDesignMode -process 45
 report_timing -check_type setup -nworst 10 -net > ${OUTPUTDIR}/${DNAME}_init_setup.tarpt
 report_timing -early -nworst 10 -net > ${OUTPUTDIR}/${DNAME}_init_hold.tarpt
 
-# @purpose: Keep routing stack fixed at the lab-mandated metal count.
-# @logic: Enforce exactly the same routing-layer cap as Part 1.
-# why: The assignment forbids changing routing layers while evaluating utilization/stripes.
 setMaxRouteLayer 4
 
-# @purpose: Build the smallest feasible core from requested utilization.
-# @logic: floorplan scales core area inversely with target utilization.
-# why: This is the lever used to re-evaluate max utilization after adding stripes.
 floorplan -r 1.0 $UTIL 6 6 6 6
 
 globalNetConnect VDD -type pgpin -pin VDD -inst * -module {}
 globalNetConnect VSS -type pgpin -pin VSS -inst * -module {}
 
-# @purpose: Create the baseline power ring from the skeleton flow.
-# @logic: Preserve ring settings exactly so only stripe insertion changes.
-# why: Comparable Part 1 vs Part 3 analysis requires all other PDN choices fixed.
 addRing -layer {top metal1 bottom metal1 left metal2 right metal2} -spacing {top 1 bottom 1 left 1 right 1} -width {top 1 bottom 1 left 1 right 1} -center 1 -nets { VDD VSS }
 
-# @purpose: Add Part 3 custom power stripes.
-# @logic: Alternate VDD/VSS vertical stripes on M2 with explicit geometry controls.
-# why: This command is the required modification for Problem 3.
-if {$ENABLE_STRIPES} {
-    addStripe \
-        -nets {VDD VSS} \
-        -layer $STRIPE_LAYER \
-        -direction $STRIPE_DIRECTION \
-        -width $STRIPE_WIDTH_UM \
-        -spacing $STRIPE_SPACING_UM \
-        -set_to_set_distance $STRIPE_SET_DISTANCE_UM \
-        -start_from left \
-        -start_offset $STRIPE_OFFSET_LEFT_UM
-} else {
-    puts "Part 3 analysis mode: running without addStripe for baseline comparison."
-}
+# Add the Power Strip Here
+# We will compare the results including this to the results without this from part 1
+# Add M2 power stripes (VDD/VSS alternating, vertical)
+addStripe -nets {VDD VSS} -layer $STRIPE_LAYER -direction $STRIPE_DIRECTION \
+    -width $STRIPE_WIDTH_UM -spacing $STRIPE_SPACING_UM \
+    -set_to_set_distance $STRIPE_SET_DISTANCE_UM \
+    -start_from left -start_offset $STRIPE_OFFSET_LEFT_UM
 
 setPlaceMode -place_global_place_io_pins true -reorderScan false
 placeDesign
@@ -160,13 +127,11 @@ setAnalysisMode -checkType setup -asyncChecks async -skew true
 buildTimingGraph
 report_timing -nworst 10 -net > ${OUTPUTDIR}/${DNAME}_postrouting_setup.tarpt
 
-# @purpose: Capture final power for Part 3 documentation.
-# @logic: Report at post-route extracted stage for meaningful comparison.
-# why: Problem 3 asks to discuss delay/power impact of the stripe grid.
 report_power > ${OUTPUTDIR}/${DNAME}_postrouting_power.rpt
 
 addFiller -cell FILLCELL_X1 FILLCELL_X2 FILLCELL_X4 FILLCELL_X8 FILLCELL_X16 FILLCELL_X32
 
+# Outputs for Problem 3 (GDS, DEF, SPEF, netlist, reports)
 verifyGeometry -allowRoutingBlkgPinOverlap -allowRoutingCellBlkgOverlap -error 20 -warning 5 -report ${OUTPUTDIR}/${DNAME}.drc.rpt
 
 streamOut ${OUTPUTDIR}/${DNAME}.gds -libName DesignLib -structureName $DNAME -merge { ./NangateOpenCellLibrary.gds } -stripes 1 -units 10000 -mode ALL
@@ -179,7 +144,7 @@ checkDesign -io -netlist -physicalLibrary -powerGround -tieHilo -timingLibrary -
 saveDesign ${OUTPUTDIR}/${DNAME}_part3.invs
 
 puts "*************************************************************"
-puts "* Innovus Part 3 script finished  (target util = $UTIL)"
+puts "* Innovus Part 3 script finished"
 puts "* Layout:  ${OUTPUTDIR}/${DNAME}.gds"
 puts "* Netlist: ${OUTPUTDIR}/${DNAME}_postrouting.v"
 puts "* Timing:  ${OUTPUTDIR}/${DNAME}_postrouting_setup.tarpt"
@@ -187,7 +152,6 @@ puts "*          ${OUTPUTDIR}/${DNAME}_postrouting_hold.tarpt"
 puts "* Power:   ${OUTPUTDIR}/${DNAME}_postrouting_power.rpt"
 puts "* DRC:     ${OUTPUTDIR}/${DNAME}.drc.rpt"
 puts "* Summary: ${OUTPUTDIR}/summary.rpt"
-puts "* Design:  ${OUTPUTDIR}/${DNAME}_part3.invs"
 puts "*************************************************************"
 
 exit

@@ -6,35 +6,35 @@ Begin Power Analysis
            1.1V	    VDD
 Begin Processing Timing Library for Power Calculation
 
-Ended Processing Timing Library for Power Calculation: (cpu=0:00:00, real=0:00:00, mem(process/total/peak)=1778.12MB/3417.18MB/1825.27MB)
+Ended Processing Timing Library for Power Calculation: (cpu=0:00:00, real=0:00:00, mem(process/total/peak)=1778.02MB/3417.18MB/1834.67MB)
 
 
 
 Begin Processing Power Net/Grid for Power Calculation
 
-Ended Processing Power Net/Grid for Power Calculation: (cpu=0:00:00, real=0:00:00, mem(process/total/peak)=1778.12MB/3417.18MB/1825.27MB)
+Ended Processing Power Net/Grid for Power Calculation: (cpu=0:00:00, real=0:00:00, mem(process/total/peak)=1778.02MB/3417.18MB/1834.67MB)
 
 Begin Processing Timing Window Data for Power Calculation
 
 CK: assigning clock blif_clk_net to net blif_clk_net
-Ended Processing Timing Window Data for Power Calculation: (cpu=0:00:00, real=0:00:00, mem(process/total/peak)=1778.12MB/3417.18MB/1825.27MB)
+Ended Processing Timing Window Data for Power Calculation: (cpu=0:00:00, real=0:00:00, mem(process/total/peak)=1778.02MB/3417.18MB/1834.67MB)
 
 Begin Processing User Attributes
 
-Ended Processing User Attributes: (cpu=0:00:00, real=0:00:00, mem(process/total/peak)=1778.12MB/3417.18MB/1825.27MB)
+Ended Processing User Attributes: (cpu=0:00:00, real=0:00:00, mem(process/total/peak)=1778.02MB/3417.18MB/1834.67MB)
 
 Begin Processing Signal Activity
 
 
 Starting Activity Propagation
-2026-Feb-18 20:01:36 (2026-Feb-19 04:01:36 GMT)
-2026-Feb-18 20:01:36 (2026-Feb-19 04:01:36 GMT): 10%
-2026-Feb-18 20:01:36 (2026-Feb-19 04:01:36 GMT): 20%
-2026-Feb-18 20:01:36 (2026-Feb-19 04:01:36 GMT): 30%
+2026-Feb-18 23:55:52 (2026-Feb-19 07:55:52 GMT)
+2026-Feb-18 23:55:52 (2026-Feb-19 07:55:52 GMT): 10%
+2026-Feb-18 23:55:52 (2026-Feb-19 07:55:52 GMT): 20%
+2026-Feb-18 23:55:52 (2026-Feb-19 07:55:52 GMT): 30%
 
 Finished Activity Propagation
-2026-Feb-18 20:01:36 (2026-Feb-19 04:01:36 GMT)
-Ended Processing Signal Activity: (cpu=0:00:00, real=0:00:00, mem(process/total/peak)=1778.12MB/3417.18MB/1825.27MB)
+2026-Feb-18 23:55:52 (2026-Feb-19 07:55:52 GMT)
+Ended Processing Signal Activity: (cpu=0:00:00, real=0:00:00, mem(process/total/peak)=1778.02MB/3417.18MB/1834.67MB)
 
 Begin Power Computation
 
@@ -47,39 +47,39 @@ Begin Power Computation
 
 
 Starting Calculating power
-2026-Feb-18 20:01:36 (2026-Feb-19 04:01:36 GMT)
+2026-Feb-18 23:55:52 (2026-Feb-19 07:55:52 GMT)
  ... Calculating switching power
-2026-Feb-18 20:01:36 (2026-Feb-19 04:01:36 GMT): 10%
-2026-Feb-18 20:01:36 (2026-Feb-19 04:01:36 GMT): 20%
-2026-Feb-18 20:01:36 (2026-Feb-19 04:01:36 GMT): 30%
-2026-Feb-18 20:01:36 (2026-Feb-19 04:01:36 GMT): 40%
-2026-Feb-18 20:01:36 (2026-Feb-19 04:01:36 GMT): 50%
+2026-Feb-18 23:55:52 (2026-Feb-19 07:55:52 GMT): 10%
+2026-Feb-18 23:55:52 (2026-Feb-19 07:55:52 GMT): 20%
+2026-Feb-18 23:55:52 (2026-Feb-19 07:55:52 GMT): 30%
+2026-Feb-18 23:55:52 (2026-Feb-19 07:55:52 GMT): 40%
+2026-Feb-18 23:55:52 (2026-Feb-19 07:55:52 GMT): 50%
  ... Calculating internal and leakage power
-2026-Feb-18 20:01:36 (2026-Feb-19 04:01:36 GMT): 60%
-2026-Feb-18 20:01:36 (2026-Feb-19 04:01:36 GMT): 70%
-2026-Feb-18 20:01:36 (2026-Feb-19 04:01:36 GMT): 80%
-2026-Feb-18 20:01:36 (2026-Feb-19 04:01:36 GMT): 90%
+2026-Feb-18 23:55:52 (2026-Feb-19 07:55:52 GMT): 60%
+2026-Feb-18 23:55:52 (2026-Feb-19 07:55:52 GMT): 70%
+2026-Feb-18 23:55:52 (2026-Feb-19 07:55:52 GMT): 80%
+2026-Feb-18 23:55:52 (2026-Feb-19 07:55:52 GMT): 90%
 
 Finished Calculating power
-2026-Feb-18 20:01:36 (2026-Feb-19 04:01:36 GMT)
+2026-Feb-18 23:55:52 (2026-Feb-19 07:55:52 GMT)
       # of MSMV cell(s) missing power_level: 0
-Ended Power Computation: (cpu=0:00:00, real=0:00:00, mem(process/total/peak)=1778.75MB/3425.19MB/1825.27MB)
+Ended Power Computation: (cpu=0:00:00, real=0:00:00, mem(process/total/peak)=1778.65MB/3425.18MB/1834.67MB)
 
 Begin Processing User Attributes
 
-Ended Processing User Attributes: (cpu=0:00:00, real=0:00:00, mem(process/total/peak)=1778.75MB/3425.19MB/1825.27MB)
+Ended Processing User Attributes: (cpu=0:00:00, real=0:00:00, mem(process/total/peak)=1778.65MB/3425.18MB/1834.67MB)
 
-Ended Power Analysis: (cpu=0:00:00, real=0:00:00, mem(process/total/peak)=1778.75MB/3425.19MB/1825.27MB)
+Ended Power Analysis: (cpu=0:00:00, real=0:00:00, mem(process/total/peak)=1778.65MB/3425.18MB/1834.67MB)
 
 Begin Boundary Leakage Calculation
 Ended Boundary Leakage Calculation: (cpu=0:00:00, real=0:00:00,
-mem(process/total/peak)=1778.75MB/3425.19MB/1825.27MB)
+mem(process/total/peak)=1778.65MB/3425.18MB/1834.67MB)
 Begin Static Power Report Generation
 *----------------------------------------------------------------------------------------
 *	Innovus 21.39-s058_1 (64bit) 04/04/2024 09:59 (Linux 3.10.0-693.el7.x86_64)
 *	
 *
-* 	Date & Time:	2026-Feb-18 20:01:36 (2026-Feb-19 04:01:36 GMT)
+* 	Date & Time:	2026-Feb-18 23:55:52 (2026-Feb-19 07:55:52 GMT)
 *
 *----------------------------------------------------------------------------------------
 *
@@ -163,5 +163,5 @@ VDD                       1.1    0.08264     0.09708    0.004974      0.1847    
 ** INFO:  (VOLTUS_POWR-3465): There are 0 decaps and 0 fillers in the design
 
 Ended Static Power Report Generation: (cpu=0:00:00, real=0:00:00,
-mem(process/total/peak)=1778.75MB/3425.19MB/1825.27MB)
+mem(process/total/peak)=1778.65MB/3425.18MB/1834.67MB)
 

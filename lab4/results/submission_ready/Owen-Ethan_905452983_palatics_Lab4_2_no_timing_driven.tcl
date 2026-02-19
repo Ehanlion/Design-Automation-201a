@@ -33,26 +33,24 @@ set init_lef_file $lef
 set init_pwr_net VDD
 set init_gnd_net VSS
 source ./rc.mmode.tcl
+
 init_design -setup _default_view_ -hold _default_view_
 setAnalysisMode -analysisType onChipVariation -cppr both
 setDesignMode -process 45
 
-# DON'T CHANGE: Limit number of metal/routing layers
+# Fixed: Limit number of metal/routing layers to 4
+# This is from the problem statement
 setMaxRouteLayer 4
-
 floorplan -r 1.0 $UTIL 6 6 6 6
-
 globalNetConnect VDD -type pgpin -pin VDD -inst * -module {}
 globalNetConnect VSS -type pgpin -pin VSS -inst * -module {}
-
-# DON'T CHANGE addRing statement.
 addRing -layer {top metal1 bottom metal1 left metal2 right metal2} \
         -spacing {top 1 bottom 1 left 1 right 1} \
         -width {top 1 bottom 1 left 1 right 1} \
         -center 1 \
         -nets { VDD VSS }
 
-# PART 2 OUTPUT: checkpoint before placement
+# --- Pre-Placement Timing Reports ---
 setAnalysisMode -checkType setup -asyncChecks async -skew true
 buildTimingGraph
 report_timing -nworst 10 -net > ${RESULTSDIR}/01_before_placement_setup.tarpt
@@ -61,14 +59,18 @@ buildTimingGraph
 report_timing -nworst 10 -net > ${RESULTSDIR}/01_before_placement_hold.tarpt
 report_power > ${RESULTSDIR}/01_before_placement_power.rpt
 
-# ---- Placement ----
+# --- Placement ---
 # CHANGED vs Part 1: explicitly disable timing-driven placement for the comparison
-setPlaceMode -place_global_place_io_pins true -reorderScan false
-setPlaceMode -timingDriven false
+# Set timingDriven to false to disable timing-driven placement
+#
+# What does timing driven placement do?
+# Timing driven placement is a technique that uses the timing constraints to guide the placement of the cells.
+# It is more accurate than the traditional placement techniques, but it is also more time-consuming.
+setPlaceMode -place_global_place_io_pins true -reorderScan false -timingDriven false
 placeDesign
 refinePlace
 
-# PART 2 OUTPUT: checkpoint after placement
+# --- Post-Placement Timing Reports ---
 setAnalysisMode -checkType setup -asyncChecks async -skew true
 buildTimingGraph
 report_timing -nworst 10 -net > ${RESULTSDIR}/02_after_placement_setup.tarpt
@@ -77,10 +79,10 @@ buildTimingGraph
 report_timing -nworst 10 -net > ${RESULTSDIR}/02_after_placement_hold.tarpt
 report_power > ${RESULTSDIR}/02_after_placement_power.rpt
 
-# ---- Pre-CTS optimization ----
+# --- Pre-CTS Optimization ---
 optDesign -preCTS
 
-# PART 2 OUTPUT: checkpoint after optDesign -preCTS
+# --- Post-Pre-CTS Optimization Timing Reports ---
 setAnalysisMode -checkType setup -asyncChecks async -skew true
 buildTimingGraph
 report_timing -nworst 10 -net > ${RESULTSDIR}/03_after_opt_prects_setup.tarpt
@@ -89,7 +91,7 @@ buildTimingGraph
 report_timing -nworst 10 -net > ${RESULTSDIR}/03_after_opt_prects_hold.tarpt
 report_power > ${RESULTSDIR}/03_after_opt_prects_power.rpt
 
-# ---- Clock tree synthesis (same as Part 1) ----
+# --- Clock Tree Synthesis ---
 sroute -connect { corePin } -corePinTarget { firstAfterRowEnd } -nets { VDD VSS }
 trialroute
 buildTimingGraph
@@ -103,11 +105,11 @@ refinePlace
 setTrialRouteMode -highEffort true
 trialRoute
 
-# ---- Post-CTS RC extraction (same as Part 1) ----
+# --- Post-CTS RC Extraction ---
 setExtractRCMode -layerIndependent 1
 extractRC
 
-# PART 2 OUTPUT: checkpoint after post-CTS RC extraction
+# --- Post-CTS RC Extraction Timing Reports ---
 setAnalysisMode -checkType setup -asyncChecks async -skew true
 buildTimingGraph
 report_timing -nworst 10 -net > ${RESULTSDIR}/05_after_postcts_rc_setup.tarpt
@@ -116,12 +118,12 @@ buildTimingGraph
 report_timing -nworst 10 -net > ${RESULTSDIR}/05_after_postcts_rc_hold.tarpt
 report_power > ${RESULTSDIR}/05_after_postcts_rc_power.rpt
 
-# ---- Post-CTS hold optimization (same as Part 1) ----
+# --- Post-CTS Hold Optimization ---
 setAnalysisMode -checkType hold -asyncChecks async -skew true
 buildTimingGraph
 optDesign -postCTS -hold
 
-# PART 2 OUTPUT: checkpoint after optDesign -postCTS -hold
+# --- Post-CTS Hold Optimization Timing Reports ---
 setAnalysisMode -checkType setup -asyncChecks async -skew true
 buildTimingGraph
 report_timing -nworst 10 -net > ${RESULTSDIR}/06_after_opt_postcts_hold_setup.tarpt
@@ -130,12 +132,12 @@ buildTimingGraph
 report_timing -nworst 10 -net > ${RESULTSDIR}/06_after_opt_postcts_hold_hold.tarpt
 report_power > ${RESULTSDIR}/06_after_opt_postcts_hold_power.rpt
 
-# ---- Pre-route RC extraction (same as Part 1) ----
+# --- Pre-route RC Extraction ---
 setExtractRCMode -engine preRoute -assumeMetFill
 extractRC
 buildTimingGraph
 
-# PART 2 OUTPUT: checkpoint after pre-route RC extraction
+# --- Pre-route RC Extraction Timing Reports ---
 setAnalysisMode -checkType setup -asyncChecks async -skew true
 buildTimingGraph
 report_timing -nworst 10 -net > ${RESULTSDIR}/07_after_preroute_rc_setup.tarpt

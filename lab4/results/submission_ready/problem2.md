@@ -56,11 +56,18 @@ Power unit is `1mW` (from Innovus `report_power`).
 - Final hold slack: `0.017 ns` for both runs.
 - Final total power: `0.16621507 mW` for both runs.
 - Measured delta (TD - No-TD): `0` for setup, hold, and power at all checkpoints.
+- Although full report files differ, the differences are run metadata (timestamps/memory stats), not QoR metrics.
 
 ## Timing-Driven Placement Explanation
 Timing-driven placement makes timing part of the placement objective, not only wirelength/congestion. In practice, the placer gives higher weight to timing-critical paths and cooperates with optimization (buffer/resize/placement moves) so critical timing endpoints are improved during place and post-place optimization.
 
-In this `s1494` run, enabling/disabling `setPlaceMode -timingDriven` produced no observable metric delta. The design is very small and highly constrained by the same floorplan/utilization, so both flows converge to the same legal placement/routing/timing solution.
+For this `s1494` run, enabling/disabling `setPlaceMode -timingDriven` produced no observable QoR delta. The most likely reasons are:
+1. The design is small and already timing-clean, so there is little timing pressure for timing-driven placement to resolve.
+2. Both runs use the same floorplan, utilization, libraries, and constraints, which strongly limits solution variability.
+3. Later optimization stages (`optDesign -preCTS`, post-CTS/post-route optimization, and RC extraction updates) dominate final QoR and can converge both flows to the same endpoint.
+4. Problem 2 compares worst setup/hold/power; if tiny per-path differences exist, they may not appear in these top-level metrics.
+
+Conclusion: no difference between timing-driven and non-timing-driven results is expected and valid for this lab configuration.
 
 ## Validation Notes
 - Both Innovus runs completed successfully.

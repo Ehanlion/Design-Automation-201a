@@ -1,69 +1,42 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Runs Lab 4 Part 3 (power-stripe flow).
+# Runs the static final Lab 4 Part 3 submission script.
+# The Tcl script has inlined final settings (util/stripes/output directory).
 #
 # Usage:
-#   ./scripts/runLab4Part3.sh [target_utilization] [output_dir] [enable_stripes]
-#
-# Examples:
 #   ./scripts/runLab4Part3.sh
-#   ./scripts/runLab4Part3.sh 0.990
-#   ./scripts/runLab4Part3.sh 0.990 output
-#   ./scripts/runLab4Part3.sh 0.915 output 1
-#   ./scripts/runLab4Part3.sh 0.915 output/run_part3_nostripes 0
-#
-# Notes:
-# - If output_dir is omitted, a timestamped run directory is created under output/.
-# - Use output_dir=output to place canonical submission files in lab4/output/.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LAB4_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PART3_TCL="${LAB4_DIR}/lab4_part3.tcl"
-
-UTIL="${1:-0.990}"
-if ! awk "BEGIN { exit !(${UTIL} > 0.0 && ${UTIL} < 1.0) }"; then
-    echo "Error: utilization must be strictly between 0 and 1."
-    exit 1
-fi
 
 if [ ! -f "$PART3_TCL" ]; then
     echo "Error: Tcl script not found: $PART3_TCL"
     exit 1
 fi
 
-ENABLE_STRIPES="${3:-1}"
-if [ "$ENABLE_STRIPES" != "0" ] && [ "$ENABLE_STRIPES" != "1" ]; then
-    echo "Error: enable_stripes must be 0 or 1."
+if [ "${1:-}" != "" ]; then
+    echo "Error: this submission runner takes no arguments."
+    echo "Run: ./scripts/runLab4Part3.sh"
     exit 1
 fi
 
-if [ "${2:-}" = "" ]; then
-    RUN_ID="$(date +%Y%m%d_%H%M%S)_$$"
-    OUT_DIR="${LAB4_DIR}/output/run_part3_${RUN_ID}_util${UTIL}"
-else
-    if [[ "$2" = /* ]]; then
-        OUT_DIR="$2"
-    else
-        OUT_DIR="${LAB4_DIR}/$2"
-    fi
-fi
+OUT_DIR="${LAB4_DIR}/results/part3_final_with_stripes"
 
-CONSOLE_LOG="${OUT_DIR}/innovus_part3_console.log"
 mkdir -p "$OUT_DIR"
+CONSOLE_LOG="${OUT_DIR}/innovus_part3_console.log"
 
 echo "=========================================="
-echo "  Lab 4 Part 3 Run"
+echo "  Lab 4 Part 3 — submission run"
 echo "=========================================="
-echo "  Tcl script:       $PART3_TCL"
-echo "  Target util:      $UTIL"
-echo "  Stripes enabled:  $ENABLE_STRIPES"
-echo "  Output dir:       $OUT_DIR"
-echo "  Console log:      $CONSOLE_LOG"
+echo "  Tcl script:   $PART3_TCL"
+echo "  Output dir:   $OUT_DIR"
+echo "  Console log:  $CONSOLE_LOG"
 echo "=========================================="
 echo ""
 
-# Source Cadence/Mentor environment if innovus is not already in PATH
+# Source Cadence/Mentor environment if innovus is not already in PATH.
 if ! command -v innovus >/dev/null 2>&1; then
     echo "innovus not in PATH — sourcing Cadence/Mentor SETUP files ..."
     set +eu
@@ -88,10 +61,6 @@ fi
 echo "Using innovus: $(which innovus)"
 echo ""
 
-export LAB4_UTIL="$UTIL"
-export LAB4_OUTPUTDIR="$OUT_DIR"
-export LAB4_ENABLE_STRIPES="$ENABLE_STRIPES"
-
 INNOVUS_EXIT=0
 (
     cd "$LAB4_DIR"
@@ -113,7 +82,7 @@ fi
 
 echo ""
 echo "=========================================="
-echo "  Part 3 artifacts"
+echo "  Part 3 submission artifacts"
 echo "=========================================="
 for f in "${OUT_DIR}/s1494_part3.invs" "${OUT_DIR}/s1494_part3.invs.dat" "${OUT_DIR}/s1494_postrouting_power.rpt"; do
     if [ -e "$f" ]; then
@@ -124,7 +93,6 @@ for f in "${OUT_DIR}/s1494_part3.invs" "${OUT_DIR}/s1494_part3.invs.dat" "${OUT_
 done
 echo "=========================================="
 
-# Stage submission-ready artifacts into lab4/results.
 UPDATE_RESULTS="${SCRIPT_DIR}/updateResultsDir.sh"
 if [ -f "$UPDATE_RESULTS" ] && [ -x "$UPDATE_RESULTS" ]; then
     echo ""

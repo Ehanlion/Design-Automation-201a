@@ -1,7 +1,7 @@
 #######################################################
 #                                                     
 #  Innovus Command Logging File                     
-#  Created on Wed Feb 18 17:27:13 2026                
+#  Created on Wed Feb 18 19:21:19 2026                
 #                                                     
 #######################################################
 
@@ -32,8 +32,6 @@ create_analysis_view -name _default_view_  -constraint_mode _default_constraint_
 init_design -setup _default_view_ -hold _default_view_
 setAnalysisMode -analysisType onChipVariation -cppr both
 setDesignMode -process 45
-report_timing -check_type setup -nworst  10 -net > ${OUTPUTDIR}/${DNAME}_init_setup.tarpt
-report_timing -early -nworst  10 -net > ${OUTPUTDIR}/${DNAME}_init_hold.tarpt
 setRouteMode -earlyGlobalMaxRouteLayer 4
 setPinAssignMode -maxLayer 4
 setNanoRouteMode -routeTopRoutingLayer 4
@@ -42,7 +40,15 @@ floorPlan -r 1.0 0.991 6 6 6 6
 globalNetConnect VDD -type pgpin -pin VDD -inst * -module {}
 globalNetConnect VSS -type pgpin -pin VSS -inst * -module {}
 addRing -layer {top metal1 bottom metal1 left metal2 right metal2} -spacing {top 1 bottom 1 left 1 right 1} -width {top 1 bottom 1 left 1 right 1} -center 1 -nets { VDD VSS }
+setAnalysisMode -checkType setup -asyncChecks async -skew true
+buildTimingGraph
+report_timing -nworst 10 -net > ${RESULTSDIR}/01_before_placement_setup.tarpt
+setAnalysisMode -checkType hold -asyncChecks async -skew true
+buildTimingGraph
+report_timing -nworst 10 -net > ${RESULTSDIR}/01_before_placement_hold.tarpt
+report_power > results/timing_driven/01_before_placement_power.rpt
 setPlaceMode -place_global_place_io_pins true -reorderScan false
+setPlaceMode -timingDriven true
 getPlaceMode -place_hierarchical_flow -quiet
 report_message -start_cmd
 getRouteMode -maxRouteLayer -quiet
@@ -116,6 +122,7 @@ setExtractRCMode -engine preRoute
 setAnalysisMode -clkSrcPath false -clockPropagation forcedIdeal
 getPlaceMode -exp_slack_driven -quiet
 isAnalysisModeSetup
+setAnalysisMode -checkType setup
 getPlaceMode -quiet -place_global_exp_solve_unbalance_path
 getPlaceMode -quiet -NMPsuppressInfo
 getPlaceMode -quiet -place_global_exp_wns_focus_v2
@@ -176,22 +183,22 @@ set_global timing_enable_path_group_priority false
 set_global timing_constraint_enable_group_path_resetting false
 getOptMode -allowPreCTSClkSrcPaths -quiet
 set_global _is_ipo_interactive_path_groups 1
-group_path -name in2reg_tmp.1707098 -from {0x49 0x4c} -to 0x4d -ignore_source_of_trigger_arc
+group_path -name in2reg_tmp.1766981 -from {0x49 0x4c} -to 0x4d -ignore_source_of_trigger_arc
 getOptMode -allowPreCTSClkSrcPaths -quiet
 set_global _is_ipo_interactive_path_groups 1
-group_path -name in2out_tmp.1707098 -from {0x50 0x53} -to 0x54 -ignore_source_of_trigger_arc
+group_path -name in2out_tmp.1766981 -from {0x50 0x53} -to 0x54 -ignore_source_of_trigger_arc
 set_global _is_ipo_interactive_path_groups 1
-group_path -name reg2reg_tmp.1707098 -from 0x56 -to 0x57
+group_path -name reg2reg_tmp.1766981 -from 0x56 -to 0x57
 set_global _is_ipo_interactive_path_groups 1
-group_path -name reg2out_tmp.1707098 -from 0x5a -to 0x5b
-setPathGroupOptions reg2reg_tmp.1707098 -effortLevel high
-reset_path_group -name reg2out_tmp.1707098
+group_path -name reg2out_tmp.1766981 -from 0x5a -to 0x5b
+setPathGroupOptions reg2reg_tmp.1766981 -effortLevel high
+reset_path_group -name reg2out_tmp.1766981
 set_global _is_ipo_interactive_path_groups 0
-reset_path_group -name in2reg_tmp.1707098
+reset_path_group -name in2reg_tmp.1766981
 set_global _is_ipo_interactive_path_groups 0
-reset_path_group -name in2out_tmp.1707098
+reset_path_group -name in2out_tmp.1766981
 set_global _is_ipo_interactive_path_groups 0
-reset_path_group -name reg2reg_tmp.1707098
+reset_path_group -name reg2reg_tmp.1766981
 set_global _is_ipo_interactive_path_groups 0
 setDelayCalMode -ignoreNetLoad false
 set delaycal_use_default_delay_limit 1000
@@ -249,22 +256,22 @@ set_global timing_enable_path_group_priority false
 set_global timing_constraint_enable_group_path_resetting false
 getOptMode -allowPreCTSClkSrcPaths -quiet
 set_global _is_ipo_interactive_path_groups 1
-group_path -name in2reg_tmp.1707098 -from {0x64 0x67} -to 0x68 -ignore_source_of_trigger_arc
+group_path -name in2reg_tmp.1766981 -from {0x64 0x67} -to 0x68 -ignore_source_of_trigger_arc
 getOptMode -allowPreCTSClkSrcPaths -quiet
 set_global _is_ipo_interactive_path_groups 1
-group_path -name in2out_tmp.1707098 -from {0x6b 0x6e} -to 0x6f -ignore_source_of_trigger_arc
+group_path -name in2out_tmp.1766981 -from {0x6b 0x6e} -to 0x6f -ignore_source_of_trigger_arc
 set_global _is_ipo_interactive_path_groups 1
-group_path -name reg2reg_tmp.1707098 -from 0x71 -to 0x72
+group_path -name reg2reg_tmp.1766981 -from 0x71 -to 0x72
 set_global _is_ipo_interactive_path_groups 1
-group_path -name reg2out_tmp.1707098 -from 0x75 -to 0x76
-setPathGroupOptions reg2reg_tmp.1707098 -effortLevel high
-reset_path_group -name reg2out_tmp.1707098
+group_path -name reg2out_tmp.1766981 -from 0x75 -to 0x76
+setPathGroupOptions reg2reg_tmp.1766981 -effortLevel high
+reset_path_group -name reg2out_tmp.1766981
 set_global _is_ipo_interactive_path_groups 0
-reset_path_group -name in2reg_tmp.1707098
+reset_path_group -name in2reg_tmp.1766981
 set_global _is_ipo_interactive_path_groups 0
-reset_path_group -name in2out_tmp.1707098
+reset_path_group -name in2out_tmp.1766981
 set_global _is_ipo_interactive_path_groups 0
-reset_path_group -name reg2reg_tmp.1707098
+reset_path_group -name reg2reg_tmp.1766981
 set_global _is_ipo_interactive_path_groups 0
 setDelayCalMode -ignoreNetLoad false
 set delaycal_use_default_delay_limit 1000
@@ -356,8 +363,21 @@ um::pop_snapshot_stack
 um::create_snapshot -name place_design
 getPlaceMode -exp_slack_driven -quiet
 refinePlace
-saveNetlist -excludeLeafCell output/s1494_placed.v
+setAnalysisMode -checkType setup -asyncChecks async -skew true
+buildTimingGraph
+report_timing -nworst 10 -net > ${RESULTSDIR}/02_after_placement_setup.tarpt
+setAnalysisMode -checkType hold -asyncChecks async -skew true
+buildTimingGraph
+report_timing -nworst 10 -net > ${RESULTSDIR}/02_after_placement_hold.tarpt
+report_power > results/timing_driven/02_after_placement_power.rpt
 optDesign -preCTS
+setAnalysisMode -checkType setup -asyncChecks async -skew true
+buildTimingGraph
+report_timing -nworst 10 -net > ${RESULTSDIR}/03_after_opt_prects_setup.tarpt
+setAnalysisMode -checkType hold -asyncChecks async -skew true
+buildTimingGraph
+report_timing -nworst 10 -net > ${RESULTSDIR}/03_after_opt_prects_hold.tarpt
+report_power > results/timing_driven/03_after_opt_prects_power.rpt
 sroute -connect { corePin } -corePinTarget { firstAfterRowEnd } -nets { VDD VSS }
 buildTimingGraph
 set_ccopt_property buffer_cells {BUF_X1 BUF_X2}
@@ -368,36 +388,78 @@ refinePlace
 setTrialRouteMode -highEffort true
 setExtractRCMode -layerIndependent 1
 extractRC
-report_ccopt_clock_trees -file output/postcts.ctsrpt
-report_ccopt_skew_groups -local_skew -file output/postcts_localskew.ctsrpt
+setAnalysisMode -checkType setup -asyncChecks async -skew true
+buildTimingGraph
+report_timing -nworst 10 -net > ${RESULTSDIR}/05_after_postcts_rc_setup.tarpt
 setAnalysisMode -checkType hold -asyncChecks async -skew true
 buildTimingGraph
-report_timing -nworst 10 -net > ${OUTPUTDIR}/${DNAME}_postcts_hold.tarpt
+report_timing -nworst 10 -net > ${RESULTSDIR}/05_after_postcts_rc_hold.tarpt
+report_power > results/timing_driven/05_after_postcts_rc_power.rpt
+setAnalysisMode -checkType hold -asyncChecks async -skew true
+buildTimingGraph
 optDesign -postCTS -hold
+setAnalysisMode -checkType setup -asyncChecks async -skew true
+buildTimingGraph
+report_timing -nworst 10 -net > ${RESULTSDIR}/06_after_opt_postcts_hold_setup.tarpt
+setAnalysisMode -checkType hold -asyncChecks async -skew true
+buildTimingGraph
+report_timing -nworst 10 -net > ${RESULTSDIR}/06_after_opt_postcts_hold_hold.tarpt
+report_power > results/timing_driven/06_after_opt_postcts_hold_power.rpt
 setExtractRCMode -engine preRoute -assumeMetFill
 extractRC
 buildTimingGraph
-report_timing -nworst 10 -net > ${OUTPUTDIR}/${DNAME}_prerouting.tarpt
+setAnalysisMode -checkType setup -asyncChecks async -skew true
+buildTimingGraph
+report_timing -nworst 10 -net > ${RESULTSDIR}/07_after_preroute_rc_setup.tarpt
+setAnalysisMode -checkType hold -asyncChecks async -skew true
+buildTimingGraph
+report_timing -nworst 10 -net > ${RESULTSDIR}/07_after_preroute_rc_hold.tarpt
+report_power > results/timing_driven/07_after_preroute_rc_power.rpt
 globalNetConnect VDD -type tiehi
 globalNetConnect VDD -type pgpin -pin VDD -override
 globalNetConnect VSS -type tielo
 globalNetConnect VSS -type pgpin -pin VSS -override
-globalDetailRoute
+globalRoute
+setAnalysisMode -checkType setup -asyncChecks async -skew true
+buildTimingGraph
+report_timing -nworst 10 -net > ${RESULTSDIR}/08_after_global_route_setup.tarpt
+setAnalysisMode -checkType hold -asyncChecks async -skew true
+buildTimingGraph
+report_timing -nworst 10 -net > ${RESULTSDIR}/08_after_global_route_hold.tarpt
+report_power > results/timing_driven/08_after_global_route_power.rpt
+detailRoute
+setAnalysisMode -checkType setup -asyncChecks async -skew true
+buildTimingGraph
+report_timing -nworst 10 -net > ${RESULTSDIR}/09_after_detail_route_setup.tarpt
+setAnalysisMode -checkType hold -asyncChecks async -skew true
+buildTimingGraph
+report_timing -nworst 10 -net > ${RESULTSDIR}/09_after_detail_route_hold.tarpt
+report_power > results/timing_driven/09_after_detail_route_power.rpt
 optDesign -postRoute
+setAnalysisMode -checkType setup -asyncChecks async -skew true
+buildTimingGraph
+report_timing -nworst 10 -net > ${RESULTSDIR}/10_after_opt_postroute_setup_setup.tarpt
+setAnalysisMode -checkType hold -asyncChecks async -skew true
+buildTimingGraph
+report_timing -nworst 10 -net > ${RESULTSDIR}/10_after_opt_postroute_setup_hold.tarpt
+report_power > results/timing_driven/10_after_opt_postroute_setup_power.rpt
 optDesign -postRoute -hold
+setAnalysisMode -checkType setup -asyncChecks async -skew true
+buildTimingGraph
+report_timing -nworst 10 -net > ${RESULTSDIR}/11_after_opt_postroute_hold_setup.tarpt
+setAnalysisMode -checkType hold -asyncChecks async -skew true
+buildTimingGraph
+report_timing -nworst 10 -net > ${RESULTSDIR}/11_after_opt_postroute_hold_hold.tarpt
+report_power > results/timing_driven/11_after_opt_postroute_hold_power.rpt
 setExtractRCMode -engine postRoute
 extractRC
 buildTimingGraph
-report_timing -nworst 10 -net > ${OUTPUTDIR}/${DNAME}_postrouting_hold.tarpt
 setAnalysisMode -checkType setup -asyncChecks async -skew true
 buildTimingGraph
-report_timing -nworst 10 -net > ${OUTPUTDIR}/${DNAME}_postrouting_setup.tarpt
+report_timing -nworst 10 -net > ${RESULTSDIR}/12_final_postroute_rc_setup.tarpt
+setAnalysisMode -checkType hold -asyncChecks async -skew true
+buildTimingGraph
+report_timing -nworst 10 -net > ${RESULTSDIR}/12_final_postroute_rc_hold.tarpt
+report_power > results/timing_driven/12_final_postroute_rc_power.rpt
 addFiller -cell FILLCELL_X1 FILLCELL_X2 FILLCELL_X4 FILLCELL_X8 FILLCELL_X16 FILLCELL_X32
-streamOut output/s1494.gds -libName DesignLib -structureName s1494 -merge { ./NangateOpenCellLibrary.gds } -stripes 1 -units 10000 -mode ALL
-defOut -floorplan -netlist -routing output/s1494_postrouting.def
-rcOut -spef output/s1494_postrouting.spef
-saveNetlist -excludeLeafCell output/s1494_postrouting.v
-summaryReport -noHtml -outfile output/summary.rpt
-reportGateCount -level 10 -outfile output/gate_count.rpt
-checkDesign -io -netlist -physicalLibrary -powerGround -tieHilo -timingLibrary -floorplan -place -noHtml -outfile output/design.rpt
-saveDesign output/s1494_part1.invs
+saveDesign results/timing_driven/s1494_timing_driven.invs

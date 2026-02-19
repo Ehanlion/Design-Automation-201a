@@ -1,7 +1,0 @@
-checkpoint=after_global_route
-setup_report=/u/ee/ugrad/palatics/ee201a/lab4/output/part2_run_20260218_175712_1716857_util0.991/no_timing_driven/metrics/no_timing_driven_after_global_route_setup.tarpt
-hold_report=/u/ee/ugrad/palatics/ee201a/lab4/output/part2_run_20260218_175712_1716857_util0.991/no_timing_driven/metrics/no_timing_driven_after_global_route_hold.tarpt
-power_report=/u/ee/ugrad/palatics/ee201a/lab4/output/part2_run_20260218_175712_1716857_util0.991/no_timing_driven/metrics/no_timing_driven_after_global_route_power.rpt
-setup_ok=1
-hold_ok=1
-power_ok=1
